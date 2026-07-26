@@ -68,6 +68,7 @@ UI\MultiBotRewardFrame.lua
 UI\MultiBotOutfitUI.lua
 UI\MultiBotTrainerUI.lua
 UI\MultiBotInventoryFrame.lua
+Features\MultiBotInventoryMoney.lua
 UI\MultiBotInventoryItem.lua
 UI\MultiBotBankFrame.lua
 UI\MultiBotInspectUI.lua
