@@ -23,7 +23,6 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 Libs\libdatabroker-1-1\LibDataBroker-1.1.lua
 Libs\LibDropdown-1.0\LibDropdown-1.0.lua
 
-
 Core\MultiBot.lua
 Core\MultiBotComm.lua
 Core\MultiBotStore.lua
@@ -101,6 +100,7 @@ UI\MultiBotLootMasterUI.lua
 UI\MultiBotBeastUI.lua
 UI\MultiBotCreatorUI.lua
 UI\MultiBotMainUI.lua
+Features\MultiBotStatsPersistence.lua
 UI\MultiBotGmUI.lua
 UI\MultiBotRTSCUI.lua
 UI\MultiBotRTIUI.lua
