@@ -1,6 +1,8 @@
 if not MultiBot then return end
 
 local STATS_SAVED_KEY = "Stats"
+local statsButton = nil
+local restoreApplied = false
 
 local function setStatsButtonState(button, enabled)
     if not button then
@@ -31,24 +33,10 @@ local function setStatsButtonState(button, enabled)
     end
 end
 
-local function applySavedStatsState(button)
-    local enabled = MultiBot.GetSavedMainBarValue
-        and MultiBot.GetSavedMainBarValue(STATS_SAVED_KEY) == "true"
-
-    MultiBot.auto = MultiBot.auto or {}
-    MultiBot.auto.stats = enabled and true or false
-    setStatsButtonState(button, enabled)
-
-    local statsFrame = MultiBot.EnsureStatsUI and MultiBot.EnsureStatsUI() or MultiBot.stats
-    if not statsFrame then
+local function refreshPartyStats()
+    if not (MultiBot.auto and MultiBot.auto.stats) then
         return
     end
-
-    if not enabled then
-        statsFrame:Hide()
-        return
-    end
-
     if GetNumRaidMembers and GetNumRaidMembers() > 0 then
         return
     end
@@ -59,7 +47,36 @@ local function applySavedStatsState(button)
             MultiBot.RequestStatsRefresh(botName)
         end
     end
-    statsFrame:Show()
+end
+
+local function applySavedStatsState()
+    if not statsButton then
+        return
+    end
+
+    local enabled = MultiBot.GetSavedMainBarValue
+        and MultiBot.GetSavedMainBarValue(STATS_SAVED_KEY) == "true"
+
+    MultiBot.auto = MultiBot.auto or {}
+    MultiBot.auto.stats = enabled and true or false
+    setStatsButtonState(statsButton, enabled)
+
+    local statsFrame = MultiBot.EnsureStatsUI and MultiBot.EnsureStatsUI() or MultiBot.stats
+    if not statsFrame then
+        return
+    end
+
+    if enabled then
+        refreshPartyStats()
+        statsFrame:Show()
+    else
+        for _, value in pairs(statsFrame.frames or {}) do
+            value:Hide()
+        end
+        statsFrame:Hide()
+    end
+
+    restoreApplied = true
 end
 
 local function wireStatsPersistence(mainFrame)
@@ -69,11 +86,12 @@ local function wireStatsPersistence(mainFrame)
     end
 
     button._mbStatsPersistenceWired = true
-    local originalDoLeft = button.doLeft
+    statsButton = button
 
-    button.doLeft = function(statsButton)
+    local originalDoLeft = button.doLeft
+    button.doLeft = function(clickedButton)
         if originalDoLeft then
-            originalDoLeft(statsButton)
+            originalDoLeft(clickedButton)
         end
 
         if MultiBot.SetSavedMainBarValue then
@@ -83,16 +101,28 @@ local function wireStatsPersistence(mainFrame)
             )
         end
     end
-
-    applySavedStatsState(button)
 end
 
 local originalInitializeMainUI = MultiBot.InitializeMainUI
 if type(originalInitializeMainUI) == "function" then
     MultiBot.InitializeMainUI = function(...)
         local result = originalInitializeMainUI(...)
-        local mainFrame = result and result.frame
-        wireStatsPersistence(mainFrame)
+        wireStatsPersistence(result and result.frame)
         return result
     end
 end
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+eventFrame:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_ENTERING_WORLD" then
+        applySavedStatsState()
+        return
+    end
+
+    if restoreApplied then
+        refreshPartyStats()
+    end
+end)
