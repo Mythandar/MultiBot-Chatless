@@ -4,15 +4,13 @@ local function formatInventoryMoney(summary)
     summary = summary or {}
     local gold = tonumber(summary.gold) or 0
     local silver = tonumber(summary.silver) or 0
-    local copper = tonumber(summary.copper) or 0
     local label = MultiBot.L("info.inventory.money_label", "Money")
 
     return string.format(
-        "|cffffff00%s:|r %d|cffffd700g|r %d|cffc7c7cfs|r %d|cffeda55fc|r",
+        "|cffffff00%s:|r %d|cffffd700g|r %d|cffc7c7cfs|r",
         label,
         gold,
-        silver,
-        copper
+        silver
     )
 end
 
