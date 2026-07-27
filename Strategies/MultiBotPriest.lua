@@ -11,7 +11,7 @@ MultiBot.addPriest = function(pFrame, pCombat, pNormal)
 
 	pFrame.addButton("Buff", -30, 0, "spell_holy_power", MultiBot.L("tips.priest.buff")).setDisable()
 	.doLeft = function(pButton)
-		MultiBot.OnOffActionToTarget(pButton, "co +buff,?", "co -buff,?", pButton.getName())
+		MultiBot.OnOffActionToTarget(pButton, "nc +buff,?", "nc -buff,?", pButton.getName())
 	end
 
 	-- PLAYBOOK --
@@ -70,7 +70,7 @@ MultiBot.addPriest = function(pFrame, pCombat, pNormal)
    -- (Expose 'rshadow' pour Shadow Protection)
    playbookFrame.addButton("ShadowRes", 0, 128, "spell_shadow_antishadow", MultiBot.L("tips.priest.playbook.rshadow")).setDisable()
    .doLeft = function(pButton)
-       MultiBot.OnOffActionToTarget(pButton, "co +rshadow,?", "co -rshadow,?", pButton.getName())
+       MultiBot.OnOffActionToTarget(pButton, "nc +rshadow,?", "nc -rshadow,?", pButton.getName())
    end
 
 	-- DPS --
@@ -85,7 +85,7 @@ MultiBot.addPriest = function(pFrame, pCombat, pNormal)
 
     dpsControlFrame.addButton("DpsAssist", 0, 0, "spell_holy_heroism", MultiBot.L("tips.priest.dps.dpsAssist")).setDisable()
 	.doLeft = function(pButton)
-		if(MultiBot.OnOffActionToTarget(pButton, "co +healer dps,?", "co -healer dps,?", pButton.getName())) then
+		if(MultiBot.OnOffActionToTarget(pButton, "co +dps assist,?", "co -dps assist,?", pButton.getName())) then
 			pButton.getButton("TankAssist").setDisable()
 			pButton.getButton("DpsAoe").setDisable()
 		end
@@ -141,7 +141,7 @@ MultiBot.addPriest = function(pFrame, pCombat, pNormal)
 	if(MultiBot.isInside(pCombat, "holy heal")) then pFrame.getButton("HolyHeal").setEnable() end
 	if(MultiBot.isInside(pCombat, "holy dps")) then pFrame.getButton("HolyDps").setEnable() end
 	if(MultiBot.isInside(pCombat, "shadow,")) then pFrame.getButton("Shadow").setEnable() end
-	if(MultiBot.isInside(pCombat, "healer dps")) then pFrame.getButton("DpsAssist").setEnable() end
+	if(MultiBot.isInside(pCombat, "dps assist")) then pFrame.getButton("DpsAssist").setEnable() end
 	if(MultiBot.isInside(pCombat, "shadow debuff")) then pFrame.getButton("DpsDebuff").setEnable() end
 	if(MultiBot.isInside(pCombat, "dps aoe")) then pFrame.getButton("DpsAoe").setEnable() end
 	if(MultiBot.isInside(pCombat, "shadow,")) then pFrame.getButton("Shadow").setEnable() end
