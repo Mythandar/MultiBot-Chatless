@@ -1,7 +1,7 @@
 MultiBot.addDruid = function(pFrame, pCombat, pNormal)
 	pFrame.addButton("Heal", 0, 0, "spell_holy_aspiration", MultiBot.L("tips.druid.heal")).setDisable()
 	.doLeft = function(pButton)
-		if(MultiBot.OnOffActionToTarget(pButton, "co +heal,?", "co -heal,?", pButton.getName())) then
+		if(MultiBot.OnOffActionToTarget(pButton, "co +resto,?", "co -resto,?", pButton.getName())) then
 			pButton.getButton("Caster").setDisable()
 			pButton.getButton("Tank").setDisable()
 			pButton.getButton("Bear").setDisable()
@@ -44,7 +44,7 @@ MultiBot.addDruid = function(pFrame, pCombat, pNormal)
 
 	tFrame.addButton("Caster", 0, 52, "spell_nature_starfall", MultiBot.L("tips.druid.playbook.caster")).setDisable()
 	.doLeft = function(pButton)
-		if(MultiBot.OnOffActionToTarget(pButton, "co +caster,?", "co -caster,?", pButton.getName())) then
+		if(MultiBot.OnOffActionToTarget(pButton, "co +balance,?", "co -balance,?", pButton.getName())) then
 			pButton.getButton("Heal").setDisable()
 			pButton.getButton("Tank").setDisable()
 			pButton.getButton("Bear").setDisable()
@@ -194,11 +194,11 @@ MultiBot.addDruid = function(pFrame, pCombat, pNormal)
 
 	-- STRATEGIES --
 
-	if(MultiBot.isInside(pCombat, "heal")) then pFrame.getButton("Heal").setEnable() end
+	if(MultiBot.isInside(pCombat, "resto")) then pFrame.getButton("Heal").setEnable() end
 	if(MultiBot.isInside(pNormal, "buff,")) then pFrame.getButton("Buff").setEnable() end
 	if(MultiBot.isInside(pCombat, "caster debuff")) then pFrame.getButton("CasterDebuff").setEnable() end
 	if(MultiBot.isInside(pCombat, "caster aoe")) then pFrame.getButton("CasterAoe").setEnable() end
-	if(MultiBot.isInside(pCombat, "caster,")) then pFrame.getButton("Caster").setEnable() end
+	if(MultiBot.isInside(pCombat, "balance")) then pFrame.getButton("Caster").setEnable() end
 	if(MultiBot.isInside(pCombat, "cat aoe")) then pFrame.getButton("CatAoe").setEnable() end
 	if(MultiBot.isInside(pCombat, "cat,")) then pFrame.getButton("Cat").setEnable() end
 	if(MultiBot.isInside(pCombat, "bear")) then pFrame.getButton("Bear").setEnable() end
