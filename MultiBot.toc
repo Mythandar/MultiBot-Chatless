@@ -108,7 +108,6 @@ UI\MultiBotRTIUI.lua
 UI\MultiBotDisperseUI.lua
 UI\MultiBotLootUI.lua
 Core\MultiBotInit.lua
-Features\MultiBotMainBarMovement.lua
 Data\MultiBotIconos.lua
 Data\MultiBotItemus.lua
 UI\MultiBotSpecUI.lua
