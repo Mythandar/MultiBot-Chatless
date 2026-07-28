@@ -100,6 +100,8 @@ GET~GLYPHS
 GET~OUTFITS
 GET~QUESTS
 GET~GAMEOBJECTS
+GET~MAINTENANCE_POLICY
+RUN~MAINTENANCE_POLICY
 RUN~CRAFT_RECIPE
 RUN~ITEM_ACTION
 RUN~OUTFIT
@@ -425,6 +427,28 @@ Examples:
 ```
 
 ---
+
+# Runtime maintenance policy
+
+The Options window includes a **Maintenance** tab backed by the structured bridge policy API. It controls the server-global alt-bot runtime policy; SavedVariables are not treated as authoritative policy storage.
+
+Available controls are:
+
+- **Repair enabled**: allows or skips the durability-repair step for alt maintenance. Other enabled maintenance operations still run when repair is disabled.
+- **Minimum master level (1-80)**: rejects alt maintenance when the controlling player/master is below the selected level. This is not a bot-level threshold.
+- **Refresh server policy**: requests the complete current policy without sending local defaults.
+
+The addon requests policy after the bridge handshake, including login, `/reload`, and reconnect. Controls remain disabled until a valid server response arrives. Each write has a unique token; duplicate writes for the same field are blocked, stale replies are ignored, and the UI waits for acknowledgement before accepting the new display value. Failures and three-second timeouts restore the last acknowledged values and show a short status message.
+
+The server remains authoritative:
+
+- Policy values are cached only in `MultiBot.bridge` for the current addon session.
+- Runtime values are not written to SavedVariables or sent automatically during initialization.
+- Worldserver restart resets the values from Playerbots configuration.
+- Startup-only Playerbots maintenance settings continue to determine which other maintenance operations are allowed; repair and minimum-level configuration values are restart defaults for their runtime fields.
+- Older bridges that do not implement the structured endpoint continue supporting all older addon functions; after the policy request times out, only the Maintenance controls are marked unavailable.
+
+Required server components are `mod-playerbots` with the runtime alt-maintenance policy API and `mod-multibot-bridge` with `GET~MAINTENANCE_POLICY` and `RUN~MAINTENANCE_POLICY`.
 
 # Bridge-First Architecture
 

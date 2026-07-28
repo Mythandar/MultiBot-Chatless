@@ -895,6 +895,114 @@ function MultiBot.BuildOptionsPanel()
       scroll:AddChild(strata)
     end
 
+    local function buildMaintenanceTab(tabGroup)
+      local scroll = addTabScroll(tabGroup)
+
+      local title = AceGUI:Create("Heading")
+      title:SetText(optLF("options.maintenance.title", "Alt-bot maintenance policy"))
+      title:SetFullWidth(true)
+      scroll:AddChild(title)
+
+      local description = AceGUI:Create("Label")
+      description:SetText(optLF("options.maintenance.description", "These values are authoritative on the server and reset to Playerbots configuration defaults when worldserver restarts."))
+      description:SetFullWidth(true)
+      scroll:AddChild(description)
+
+      local status = AceGUI:Create("Label")
+      status:SetFullWidth(true)
+      scroll:AddChild(status)
+
+      local repair = AceGUI:Create("CheckBox")
+      repair:SetLabel(optLF("options.maintenance.repair", "Repair enabled"))
+      repair:SetDescription(optLF("options.maintenance.repair_desc", "Allow alt-bot maintenance to repair durability."))
+      repair:SetFullWidth(true)
+      scroll:AddChild(repair)
+
+      local minLevel = AceGUI:Create("EditBox")
+      minLevel:SetLabel(optLF("options.maintenance.min_level", "Minimum master level (1-80)"))
+      minLevel:SetFullWidth(true)
+      minLevel:DisableButton(false)
+      local minLevelDescription = AceGUI:Create("Label")
+      minLevelDescription:SetText(optLF("options.maintenance.min_level_desc", "Alt maintenance is skipped when the controlling player is below this level."))
+      minLevelDescription:SetFullWidth(true)
+      scroll:AddChild(minLevel)
+      scroll:AddChild(minLevelDescription)
+
+      local refresh = AceGUI:Create("Button")
+      refresh:SetText(optLF("options.maintenance.refresh", "Refresh server policy"))
+      refresh:SetWidth(180)
+      scroll:AddChild(refresh)
+
+      local updating = false
+      local function refreshControls(policy)
+        policy = policy or (MultiBot.bridge and MultiBot.bridge.maintenancePolicy) or {}
+        local connected = MultiBot.bridge and MultiBot.bridge.connected
+        local pending = policy.pendingQuery or (policy.pending and (policy.pending.repair or policy.pending.minLevel))
+        updating = true
+        if policy.repairEnabled ~= nil then
+          repair:SetValue(policy.repairEnabled and true or false)
+        end
+        if policy.minMasterLevel ~= nil then
+          minLevel:SetText(tostring(policy.minMasterLevel))
+        end
+        updating = false
+
+        local disabled = not connected or not policy.available or pending
+        repair:SetDisabled(disabled and true or false)
+        minLevel:SetDisabled(disabled and true or false)
+        refresh:SetDisabled(not connected or policy.pendingQuery)
+
+        if policy.pendingQuery then
+          status:SetText(optLF("options.maintenance.querying", "Querying server policy..."))
+        elseif pending then
+          status:SetText(optLF("options.maintenance.updating", "Waiting for server acknowledgement..."))
+        elseif policy.error then
+          status:SetText(string.format("|cffff5555%s: %s|r", optLF("options.maintenance.error", "Server error"), optLF("options.maintenance.error." .. tostring(policy.error), tostring(policy.error))))
+        elseif not connected then
+          status:SetText(optLF("options.maintenance.bridge_unavailable", "Bridge unavailable. Controls are disabled."))
+        elseif not policy.available then
+          status:SetText(optLF("options.maintenance.feature_unavailable", "Maintenance policy controls are unavailable on this server."))
+        else
+          status:SetText(string.format(optLF("options.maintenance.current", "Scope: global alt bots. Repair %s; minimum master level %d."), policy.repairEnabled and "ON" or "OFF", tonumber(policy.minMasterLevel) or 1))
+        end
+      end
+
+      repair:SetCallback("OnValueChanged", function(_, _, value)
+        if updating then return end
+        if MultiBot.Comm and MultiBot.Comm.SetMaintenanceRepair then
+          MultiBot.Comm.SetMaintenanceRepair(value and true or false)
+        end
+      end)
+
+      minLevel:SetCallback("OnEnterPressed", function(widget, _, value)
+        local level = tonumber(value)
+        if not level or level ~= math.floor(level) or level < 1 or level > 80 then
+          local policy = MultiBot.bridge and MultiBot.bridge.maintenancePolicy
+          if policy then
+            policy.error = "LEVEL_OUT_OF_RANGE"
+            refreshControls(policy)
+          end
+          return
+        end
+        if MultiBot.Comm and MultiBot.Comm.SetMaintenanceMinMasterLevel then
+          MultiBot.Comm.SetMaintenanceMinMasterLevel(level)
+        end
+        widget:ClearFocus()
+      end)
+
+      refresh:SetCallback("OnClick", function()
+        if MultiBot.Comm and MultiBot.Comm.RequestMaintenancePolicy then
+          MultiBot.Comm.RequestMaintenancePolicy()
+        end
+      end)
+
+      MultiBot.OnMaintenancePolicyChanged = refreshControls
+      refreshControls()
+      if MultiBot.Comm and MultiBot.Comm.RequestMaintenancePolicy then
+        MultiBot.Comm.RequestMaintenancePolicy()
+      end
+    end
+
     local function buildIntervalsTab(tabGroup)
       local scroll = addTabScroll(tabGroup)
 
@@ -997,9 +1105,11 @@ function MultiBot.BuildOptionsPanel()
       { text = optL("options.tabs.minimap"), value = "minimap" },
       { text = optL("options.tabs.layout"), value = "layout" },
       { text = optL("options.tabs.strata"), value = "strata" },
+      { text = optLF("options.tabs.maintenance", "Maintenance"), value = "maintenance" },
       { text = optL("options.tabs.intervals"), value = "intervals" },
     })
     tabGroup:SetCallback("OnGroupSelected", function(widget, _, group)
+      MultiBot.OnMaintenancePolicyChanged = nil
       widget:ReleaseChildren()
       if group == "minimap" then
         buildMinimapTab(widget)
@@ -1009,6 +1119,8 @@ function MultiBot.BuildOptionsPanel()
         buildStrataTab(widget)
       elseif group == "intervals" then
         buildIntervalsTab(widget)
+      elseif group == "maintenance" then
+        buildMaintenanceTab(widget)
       end
     end)
     root:AddChild(tabGroup)

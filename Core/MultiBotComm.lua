@@ -37,7 +37,8 @@ local function trim(value)
     return ""
   end
 
-  return value:gsub("^%s+", ""):gsub("%s+$", "")
+  local trimmed = value:gsub("^%s+", ""):gsub("%s+$", "")
+  return trimmed
 end
 
 local function splitOnce(value, separator)
@@ -152,6 +153,15 @@ local function ensureBridgeState()
   state.combatSeq = state.combatSeq or 0
   state.positionSeq = state.positionSeq or 0
   state.lootSeq = state.lootSeq or 0
+  state.maintenancePolicy = state.maintenancePolicy or {
+    available = false,
+    repairEnabled = nil,
+    minMasterLevel = nil,
+    pendingQuery = false,
+    pending = {},
+    sequence = 0,
+    error = nil,
+  }
   return state
 end
 
@@ -228,6 +238,125 @@ function Comm.SendPing()
   state.lastPingToken = token
   state.lastPingAt = safeNow()
   return Comm.Send("PING", token)
+end
+
+local function notifyMaintenancePolicyChanged()
+  if MultiBot and type(MultiBot.OnMaintenancePolicyChanged) == "function" then
+    MultiBot.OnMaintenancePolicyChanged(ensureBridgeState().maintenancePolicy)
+  end
+end
+
+local function nextMaintenancePolicyToken(state)
+  local policy = state.maintenancePolicy
+  policy.sequence = (tonumber(policy.sequence) or 0) + 1
+  return tostring(math.floor(safeNow() * 1000)) .. "-maint-" .. tostring(policy.sequence)
+end
+
+local function scheduleMaintenanceWriteTimeout(pendingKey, token)
+  safeDelay(3.0, function()
+    local policy = ensureBridgeState().maintenancePolicy
+    if policy.pending[pendingKey] == token then
+      policy.pending[pendingKey] = nil
+      policy.error = "UPDATE_TIMEOUT"
+      notifyMaintenancePolicyChanged()
+    end
+  end)
+end
+
+local function applyMaintenancePolicy(policy, repairValue, levelValue)
+  repairValue = string.upper(trim(repairValue))
+  local level = tonumber(trim(levelValue))
+  if (repairValue ~= "ON" and repairValue ~= "OFF") or not level or level ~= math.floor(level) or level < 1 or level > 80 then
+    return false
+  end
+
+  policy.available = true
+  policy.repairEnabled = repairValue == "ON"
+  policy.minMasterLevel = level
+  policy.error = nil
+  return true
+end
+
+function Comm.RequestMaintenancePolicy()
+  local state = ensureBridgeState()
+  local policy = state.maintenancePolicy
+  if not state.connected then
+    policy.available = false
+    policy.error = "BRIDGE_UNAVAILABLE"
+    notifyMaintenancePolicyChanged()
+    return false
+  end
+
+  local token = nextMaintenancePolicyToken(state)
+  policy.pendingQuery = token
+  policy.error = nil
+  notifyMaintenancePolicyChanged()
+  if not Comm.Send("GET", "MAINTENANCE_POLICY~" .. urlEncodeField(token)) then
+    policy.pendingQuery = false
+    policy.error = "SEND_FAILED"
+    notifyMaintenancePolicyChanged()
+    return false
+  end
+
+  safeDelay(3.0, function()
+    local current = ensureBridgeState().maintenancePolicy
+    if current.pendingQuery == token then
+      current.pendingQuery = false
+      current.available = false
+      current.error = "FEATURE_UNAVAILABLE"
+      notifyMaintenancePolicyChanged()
+    end
+  end)
+  return true
+end
+
+function Comm.SetMaintenanceRepair(enabled)
+  local state = ensureBridgeState()
+  local policy = state.maintenancePolicy
+  if not state.connected or not policy.available or policy.pending.repair then
+    return false
+  end
+
+  local token = nextMaintenancePolicyToken(state)
+  policy.pending.repair = token
+  policy.error = nil
+  notifyMaintenancePolicyChanged()
+  local value = enabled and "ON" or "OFF"
+  if not Comm.Send("RUN", "MAINTENANCE_POLICY~" .. urlEncodeField(token) .. "~REPAIR_ENABLED~" .. urlEncodeField(value)) then
+    policy.pending.repair = nil
+    policy.error = "SEND_FAILED"
+    notifyMaintenancePolicyChanged()
+    return false
+  end
+  scheduleMaintenanceWriteTimeout("repair", token)
+  return true
+end
+
+function Comm.SetMaintenanceMinMasterLevel(level)
+  local state = ensureBridgeState()
+  local policy = state.maintenancePolicy
+  level = tonumber(level)
+  if not level or level ~= math.floor(level) or level < 1 or level > 80 then
+    policy.error = "LEVEL_OUT_OF_RANGE"
+    notifyMaintenancePolicyChanged()
+    return false
+  end
+  if not state.connected or not policy.available or policy.pending.minLevel then
+    return false
+  end
+
+  local token = nextMaintenancePolicyToken(state)
+  policy.pending.minLevel = token
+  policy.error = nil
+  notifyMaintenancePolicyChanged()
+  if not Comm.Send("RUN", "MAINTENANCE_POLICY~" .. urlEncodeField(token) .. "~MIN_MASTER_LEVEL~" .. urlEncodeField(level)) then
+    policy.pending.minLevel = nil
+    policy.error = "SEND_FAILED"
+    notifyMaintenancePolicyChanged()
+    return false
+  end
+  scheduleMaintenanceWriteTimeout("minLevel", token)
+  return true
 end
 
 function Comm.RequestRoster()
@@ -892,6 +1021,11 @@ function Comm.MarkDisconnected(reason)
   state.outfitCommands = {}
   state.trainerActive = nil
   state.trainerCommands = {}
+  state.maintenancePolicy.available = false
+  state.maintenancePolicy.pendingQuery = false
+  state.maintenancePolicy.pending = {}
+  state.maintenancePolicy.error = reason or nil
+  notifyMaintenancePolicyChanged()
 end
 
 local function parseBridgeDetailPayload(payload)
@@ -2239,6 +2373,9 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
           if Comm.RequestBotDetails then
             Comm.RequestBotDetails()
           end
+          if Comm.RequestMaintenancePolicy then
+            Comm.RequestMaintenancePolicy()
+          end
         end
       end)
     else
@@ -2256,6 +2393,159 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
     state.bootstrapPending = false
     state.bootstrapDeadline = 0
     debugPrint("ADDON:RX", "PONG", payload or "")
+    return true
+  end
+
+  if opcode == "MAINTENANCE_POLICY" then
+    local token, rest = splitOnce(payload, "~")
+    local scope
+    scope, rest = splitOnce(rest, "~")
+    local repairValue, levelValue = splitOnce(rest, "~")
+    token = trim(urlDecodeField(token))
+    scope = trim(urlDecodeField(scope))
+    local policy = state.maintenancePolicy
+    if token ~= policy.pendingQuery then
+      return true
+    end
+
+    policy.pendingQuery = false
+    policy.scope = scope
+    if scope ~= "GLOBAL_ALT_BOTS" or not applyMaintenancePolicy(policy, repairValue, levelValue) then
+      policy.available = false
+      policy.error = "MALFORMED_RESPONSE"
+    end
+    notifyMaintenancePolicyChanged()
+    return true
+  end
+
+  if opcode == "MAINTENANCE_POLICY_RESULT" then
+    local token, rest = splitOnce(payload, "~")
+    local status
+    status, rest = splitOnce(rest, "~")
+    local scope
+    scope, rest = splitOnce(rest, "~")
+    local field
+    field, rest = splitOnce(rest, "~")
+    local normalizedValue
+    normalizedValue, rest = splitOnce(rest, "~")
+    local reason
+    reason, rest = splitOnce(rest, "~")
+    local repairValue, levelValue = splitOnce(rest, "~")
+
+    token = trim(urlDecodeField(token))
+    status = string.upper(trim(status))
+    scope = trim(urlDecodeField(scope))
+    field = string.upper(trim(urlDecodeField(field)))
+    normalizedValue = trim(urlDecodeField(normalizedValue))
+    reason = trim(urlDecodeField(reason))
+
+    local policy = state.maintenancePolicy
+    local pendingKey = field == "REPAIR_ENABLED" and "repair" or (field == "MIN_MASTER_LEVEL" and "minLevel" or nil)
+    local matchesQuery = token ~= "" and token == policy.pendingQuery
+    local matchesWrite = pendingKey and token == policy.pending[pendingKey]
+    local normalizedValid = (field == "REPAIR_ENABLED" and string.upper(normalizedValue) == string.upper(trim(repairValue)))
+      or (field == "MIN_MASTER_LEVEL" and tonumber(normalizedValue) == tonumber(trim(levelValue)))
+    if not matchesQuery and not matchesWrite then
+      return true
+    end
+    policy.scope = scope
+
+    if matchesQuery then
+      policy.pendingQuery = false
+    end
+    if matchesWrite then
+      policy.pending[pendingKey] = nil
+    end
+
+    if status == "SUCCESS" and scope == "GLOBAL_ALT_BOTS" and matchesWrite and normalizedValid and applyMaintenancePolicy(policy, repairValue, levelValue) then
+      policy.error = nil
+    elseif status == "FAILURE" then
+      if matchesQuery then
+        policy.available = false
+      end
+      policy.error = reason ~= "" and reason or "UPDATE_FAILED"
+    else
+      policy.error = "MALFORMED_RESPONSE"
+    end
+    notifyMaintenancePolicyChanged()
+    return true
+  end
+
+  if opcode == "MAINT_POLICY" then
+    local repairValue, levelValue = splitOnce(payload, "~")
+    repairValue = string.upper(trim(repairValue))
+    local level = tonumber(trim(levelValue))
+    local policy = state.maintenancePolicy
+    policy.pendingQuery = false
+    if (repairValue ~= "ON" and repairValue ~= "OFF") or not level or level ~= math.floor(level) or level < 1 or level > 80 then
+      policy.available = false
+      policy.error = "MALFORMED_RESPONSE"
+    else
+      policy.available = true
+      policy.repairEnabled = repairValue == "ON"
+      policy.minMasterLevel = level
+      policy.error = nil
+    end
+    notifyMaintenancePolicyChanged()
+    return true
+  end
+
+  if opcode == "MAINT_POLICY_ERROR" then
+    local policy = state.maintenancePolicy
+    policy.pendingQuery = false
+    policy.available = false
+    policy.error = trim(payload) ~= "" and trim(payload) or "QUERY_FAILED"
+    notifyMaintenancePolicyChanged()
+    return true
+  end
+
+  if opcode == "MAINT_REPAIR_ACK" then
+    local token, value = splitOnce(payload, "~")
+    local policy = state.maintenancePolicy
+    value = string.upper(trim(value))
+    if token == policy.pending.repair and (value == "ON" or value == "OFF") then
+      policy.pending.repair = nil
+      policy.repairEnabled = value == "ON"
+      policy.available = true
+      policy.error = nil
+      notifyMaintenancePolicyChanged()
+    end
+    return true
+  end
+
+  if opcode == "MAINT_REPAIR_ERROR" then
+    local token, reason = splitOnce(payload, "~")
+    local policy = state.maintenancePolicy
+    if token == policy.pending.repair then
+      policy.pending.repair = nil
+      policy.error = trim(reason) ~= "" and trim(reason) or "UPDATE_FAILED"
+      notifyMaintenancePolicyChanged()
+    end
+    return true
+  end
+
+  if opcode == "MAINT_MIN_LEVEL_ACK" then
+    local token, value = splitOnce(payload, "~")
+    local policy = state.maintenancePolicy
+    local level = tonumber(trim(value))
+    if token == policy.pending.minLevel and level and level == math.floor(level) and level >= 1 and level <= 80 then
+      policy.pending.minLevel = nil
+      policy.minMasterLevel = level
+      policy.available = true
+      policy.error = nil
+      notifyMaintenancePolicyChanged()
+    end
+    return true
+  end
+
+  if opcode == "MAINT_MIN_LEVEL_ERROR" then
+    local token, reason = splitOnce(payload, "~")
+    local policy = state.maintenancePolicy
+    if token == policy.pending.minLevel then
+      policy.pending.minLevel = nil
+      policy.error = trim(reason) ~= "" and trim(reason) or "UPDATE_FAILED"
+      notifyMaintenancePolicyChanged()
+    end
     return true
   end
 
@@ -3227,6 +3517,10 @@ function Comm.OnPlayerEnteringWorld()
   state.trainerActive = nil
   state.trainerCommands = {}
   state.trainerSpells = {}
+  state.maintenancePolicy.available = false
+  state.maintenancePolicy.pendingQuery = false
+  state.maintenancePolicy.pending = {}
+  state.maintenancePolicy.error = nil
   Comm.MarkDisconnected(nil)
   state.trainerActive = nil
   state.trainerCommands = {}
