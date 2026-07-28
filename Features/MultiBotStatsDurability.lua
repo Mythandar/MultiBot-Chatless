@@ -5,6 +5,7 @@ local DURABILITY_TEXT_X = 70
 local DURABILITY_TEXT_Y = -43
 local DURABILITY_FONT_SIZE = 10
 local STATS_FONT_PATH = "Fonts\\ARIALN.ttf"
+local EQUIPMENT_DAMAGE_LABEL = "Equip Dmg"
 
 local function shortLabel(key, fallback)
     if MultiBot.L then
@@ -37,7 +38,7 @@ local function ensureDurabilityText(statsFrame)
     if not statsFrame.texts["Durability"] then
         statsFrame.addText(
             "Durability",
-            "|cff888888" .. shortLabel("dur", "Dur") .. " --|r",
+            "|cff888888" .. EQUIPMENT_DAMAGE_LABEL .. " --|r",
             "TOPLEFT",
             DURABILITY_TEXT_X,
             DURABILITY_TEXT_Y,
@@ -60,23 +61,34 @@ local function durabilityColour(damagePercent)
     return "|cff33ff33"
 end
 
-local function updateDurabilityText(statsFrame, damagePercent)
+local function updateDurabilityText(statsFrame, level, durabilityRemainingPercent)
     local text = ensureDurabilityText(statsFrame)
     if not text then
         return
     end
 
-    damagePercent = tonumber(damagePercent)
-    if not damagePercent then
-        text:SetText("|cff888888" .. shortLabel("dur", "Dur") .. " --|r")
+    level = tonumber(level) or 0
+    if level >= 80 then
+        text:Hide()
         return
     end
 
+    text:Show()
+
+    durabilityRemainingPercent = tonumber(durabilityRemainingPercent)
+    if not durabilityRemainingPercent then
+        text:SetText("|cff888888" .. EQUIPMENT_DAMAGE_LABEL .. " --|r")
+        return
+    end
+
+    durabilityRemainingPercent = math.max(0, math.min(100, durabilityRemainingPercent))
+    local damagePercent = 100 - durabilityRemainingPercent
     damagePercent = math.max(0, math.min(100, math.floor(damagePercent + 0.5)))
+
     text:SetFont(STATS_FONT_PATH, DURABILITY_FONT_SIZE, "PLAIN")
     text:SetText(
         durabilityColour(damagePercent)
-        .. shortLabel("dur", "Dur")
+        .. EQUIPMENT_DAMAGE_LABEL
         .. " "
         .. damagePercent
         .. "%|r"
@@ -128,7 +140,12 @@ if type(originalApplyBridgeStats) == "function" then
             return applied
         end
 
-        updateDurabilityText(statsFrame, stats.durabilityPct)
+        local level = tonumber(stats.level or 0) or 0
+        if level <= 0 and unit and UnitExists and UnitExists(unit) then
+            level = UnitLevel(unit) or 0
+        end
+
+        updateDurabilityText(statsFrame, level, stats.durabilityPct)
 
         local valuesText = statsFrame.texts and statsFrame.texts["Values"] or nil
         if valuesText then
