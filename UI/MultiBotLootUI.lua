@@ -24,13 +24,45 @@ local LOOT_PROFILE_KEYS = {
     skill = true,
 }
 
+local LOOT_ENABLED_STORE_KEY = "lootEnabled"
+local LOOT_PROFILE_STORE_KEY = "lootProfile"
+
 local lootVisualState = {
-    enabled = nil,
+    enabled = false,
     profile = nil,
 }
 
 local function NormalizeLootCommand(command)
     return string.lower((command or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function LoadLootVisualState()
+    if not MultiBot or not MultiBot.Store or not MultiBot.Store.GetUIValue then
+        return
+    end
+
+    local enabled = MultiBot.Store.GetUIValue(LOOT_ENABLED_STORE_KEY)
+    local profile = MultiBot.Store.GetUIValue(LOOT_PROFILE_STORE_KEY)
+
+    if type(enabled) == "boolean" then
+        lootVisualState.enabled = enabled
+    end
+
+    if type(profile) == "string" then
+        profile = NormalizeLootCommand(profile)
+        if LOOT_PROFILE_KEYS[profile] then
+            lootVisualState.profile = profile
+        end
+    end
+end
+
+local function SaveLootVisualState()
+    if not MultiBot or not MultiBot.Store or not MultiBot.Store.SetUIValue then
+        return
+    end
+
+    MultiBot.Store.SetUIValue(LOOT_ENABLED_STORE_KEY, lootVisualState.enabled == true)
+    MultiBot.Store.SetUIValue(LOOT_PROFILE_STORE_KEY, lootVisualState.profile)
 end
 
 local function RunLootCommand(command)
@@ -51,6 +83,8 @@ function MultiBot.BuildLootUI(tLeft)
     if not tLeft or MultiBot.frames.loot then
         return MultiBot.frames.loot
     end
+
+    LoadLootVisualState()
 
     local button
     local menu = tLeft.addFrame("LootMenu", -73, 34, 24, 24, 170).doHide()
@@ -83,6 +117,14 @@ function MultiBot.BuildLootUI(tLeft)
         if lootVisualState.profile and menuButtonsByKey[lootVisualState.profile] then
             menuButtonsByKey[lootVisualState.profile].setEnable()
         end
+
+        if button then
+            if lootVisualState.enabled == true then
+                button.setEnable()
+            else
+                button.setDisable()
+            end
+        end
     end
 
     MultiBot.OnLootCommandApplied = function(command, executed)
@@ -97,7 +139,6 @@ function MultiBot.BuildLootUI(tLeft)
             lootVisualState.enabled = true
         elseif command == "nc -loot" then
             lootVisualState.enabled = false
-            lootVisualState.profile = nil
         else
             local profile = command:match("^ll%s+([%w_%-]+)$")
             if profile and LOOT_PROFILE_KEYS[profile] then
@@ -105,6 +146,7 @@ function MultiBot.BuildLootUI(tLeft)
             end
         end
 
+        SaveLootVisualState()
         applyLootVisualState()
     end
 
@@ -114,14 +156,6 @@ function MultiBot.BuildLootUI(tLeft)
                 menuButton:doShow()
             else
                 menuButton:doHide()
-            end
-        end
-
-        if button then
-            if shown then
-                button.setEnable()
-            else
-                button.setDisable()
             end
         end
 
@@ -154,7 +188,6 @@ function MultiBot.BuildLootUI(tLeft)
         menuButtons[index] = menuButton
         menuButtonsByKey[entry.key] = menuButton
     end
-    applyLootVisualState()
 
     MultiBot.frames.lootMenu = menu
 
@@ -173,6 +206,7 @@ function MultiBot.BuildLootUI(tLeft)
     end
 
     hideLootMenu()
+    applyLootVisualState()
 
     MultiBot.frames.loot = button
     return button

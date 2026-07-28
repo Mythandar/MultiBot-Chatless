@@ -102,6 +102,7 @@ UI\MultiBotBeastUI.lua
 UI\MultiBotCreatorUI.lua
 UI\MultiBotMainUI.lua
 Features\MultiBotStatsPersistence.lua
+Features\MultiBotStatsDurability.lua
 UI\MultiBotGmUI.lua
 UI\MultiBotRTSCUI.lua
 UI\MultiBotRTIUI.lua
