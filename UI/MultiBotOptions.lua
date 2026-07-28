@@ -922,7 +922,11 @@ function MultiBot.BuildOptionsPanel()
       minLevel:SetLabel(optLF("options.maintenance.min_level", "Minimum master level (1-80)"))
       minLevel:SetFullWidth(true)
       minLevel:DisableButton(false)
+      local minLevelDescription = AceGUI:Create("Label")
+      minLevelDescription:SetText(optLF("options.maintenance.min_level_desc", "Alt maintenance is skipped when the controlling player is below this level."))
+      minLevelDescription:SetFullWidth(true)
       scroll:AddChild(minLevel)
+      scroll:AddChild(minLevelDescription)
 
       local refresh = AceGUI:Create("Button")
       refresh:SetText(optLF("options.maintenance.refresh", "Refresh server policy"))
@@ -953,13 +957,13 @@ function MultiBot.BuildOptionsPanel()
         elseif pending then
           status:SetText(optLF("options.maintenance.updating", "Waiting for server acknowledgement..."))
         elseif policy.error then
-          status:SetText(string.format("|cffff5555%s: %s|r", optLF("options.maintenance.error", "Server error"), tostring(policy.error)))
+          status:SetText(string.format("|cffff5555%s: %s|r", optLF("options.maintenance.error", "Server error"), optLF("options.maintenance.error." .. tostring(policy.error), tostring(policy.error))))
         elseif not connected then
           status:SetText(optLF("options.maintenance.bridge_unavailable", "Bridge unavailable. Controls are disabled."))
         elseif not policy.available then
           status:SetText(optLF("options.maintenance.feature_unavailable", "Maintenance policy controls are unavailable on this server."))
         else
-          status:SetText(string.format(optLF("options.maintenance.current", "Server policy: repair %s, minimum master level %d."), policy.repairEnabled and "ON" or "OFF", tonumber(policy.minMasterLevel) or 1))
+          status:SetText(string.format(optLF("options.maintenance.current", "Scope: global alt bots. Repair %s; minimum master level %d."), policy.repairEnabled and "ON" or "OFF", tonumber(policy.minMasterLevel) or 1))
         end
       end
 
