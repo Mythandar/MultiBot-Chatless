@@ -127,6 +127,11 @@ function MultiBot.BuildLootUI(tLeft)
         end
     end
 
+    MultiBot.RefreshLootVisualState = function()
+        LoadLootVisualState()
+        applyLootVisualState()
+    end
+
     MultiBot.OnLootCommandApplied = function(command, executed)
         local applied = tonumber(executed) or 0
         if applied <= 0 then
