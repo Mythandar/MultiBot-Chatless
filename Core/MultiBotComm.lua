@@ -37,7 +37,8 @@ local function trim(value)
     return ""
   end
 
-  return value:gsub("^%s+", ""):gsub("%s+$", "")
+  local trimmed = value:gsub("^%s+", ""):gsub("%s+$", "")
+  return trimmed
 end
 
 local function splitOnce(value, separator)
