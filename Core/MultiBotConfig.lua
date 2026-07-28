@@ -137,6 +137,10 @@ function MultiBot.Config_InitDB()
 
   migrateLegacyConfigIntoProfile(db.profile)
   MultiBot.db = db
+
+  if type(MultiBot.RefreshLootVisualState) == "function" then
+    MultiBot.RefreshLootVisualState()
+  end
 end
 
 -- Ensure SavedVariables keys exist.
