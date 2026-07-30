@@ -904,7 +904,7 @@ function MultiBot.BuildOptionsPanel()
       scroll:AddChild(title)
 
       local description = AceGUI:Create("Label")
-      description:SetText(optLF("options.maintenance.description", "These values are authoritative on the server and reset to Playerbots configuration defaults when worldserver restarts."))
+      description:SetText(optLF("options.maintenance.description", "The maintenance level is saved per character and restored when you reconnect. Server policy remains authoritative while connected."))
       description:SetFullWidth(true)
       scroll:AddChild(description)
 
@@ -963,7 +963,7 @@ function MultiBot.BuildOptionsPanel()
         elseif not policy.available then
           status:SetText(optLF("options.maintenance.feature_unavailable", "Maintenance policy controls are unavailable on this server."))
         else
-          status:SetText(string.format(optLF("options.maintenance.current", "Scope: global alt bots. Repair %s; minimum master level %d."), policy.repairEnabled and "ON" or "OFF", tonumber(policy.minMasterLevel) or 1))
+          status:SetText(string.format(optLF("options.maintenance.current", "Scope: global alt bots. Repair %s; minimum master level %d."), policy.repairEnabled and "ON" or "OFF", tonumber(policy.minMasterLevel) or 80))
         end
       end
 

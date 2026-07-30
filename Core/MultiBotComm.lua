@@ -341,6 +341,8 @@ function Comm.SetMaintenanceMinMasterLevel(level)
     notifyMaintenancePolicyChanged()
     return false
   end
+  _G.MultiBotSave = type(_G.MultiBotSave) == "table" and _G.MultiBotSave or {}
+  _G.MultiBotSave.maintenanceMinMasterLevel = level
   if not state.connected or not policy.available or policy.pending.minLevel then
     return false
   end
@@ -357,6 +359,21 @@ function Comm.SetMaintenanceMinMasterLevel(level)
   end
   scheduleMaintenanceWriteTimeout("minLevel", token)
   return true
+end
+
+local function restoreMaintenanceMinMasterLevel(policy)
+  _G.MultiBotSave = type(_G.MultiBotSave) == "table" and _G.MultiBotSave or {}
+  local savedLevel = tonumber(_G.MultiBotSave.maintenanceMinMasterLevel)
+  if not savedLevel or savedLevel ~= math.floor(savedLevel) or savedLevel < 1 or savedLevel > 80 then
+    savedLevel = 80
+    _G.MultiBotSave.maintenanceMinMasterLevel = savedLevel
+  end
+
+  if policy.available and policy.minMasterLevel ~= savedLevel and not policy.pending.minLevel then
+    safeDelay(0, function()
+      Comm.SetMaintenanceMinMasterLevel(savedLevel)
+    end)
+  end
 end
 
 function Comm.RequestRoster()
@@ -2415,6 +2432,7 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
       policy.error = "MALFORMED_RESPONSE"
     end
     notifyMaintenancePolicyChanged()
+    restoreMaintenanceMinMasterLevel(policy)
     return true
   end
 
@@ -2487,6 +2505,7 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
       policy.error = nil
     end
     notifyMaintenancePolicyChanged()
+    restoreMaintenanceMinMasterLevel(policy)
     return true
   end
 
