@@ -12,8 +12,8 @@ MultiBot.addMage = function(pFrame, pCombat, pNormal)
 		end
 	end
 
-	local function addConjureButton(name, x, icon, tip, command, minimumLevel)
-		pFrame.addButton(name, x, 0, icon, tip).doLeft = function(pButton)
+	local function addConjureButton(parent, name, y, icon, tip, command, minimumLevel)
+		parent.addButton(name, 0, y, icon, tip).doLeft = function(pButton)
 			local botName = pButton.getName and pButton.getName() or ""
 			if botName == "" then return end
 			local botLevel = minimumLevel and getBotLevel(botName) or nil
@@ -184,9 +184,17 @@ MultiBot.addMage = function(pFrame, pCombat, pNormal)
 	end
 
 	-- MAGE UTILITIES --
-	addConjureButton("ConjureFood", -120, "Ability_Mage_ConjureFoodRank10", "Conjure Food", "cast conjure food")
-	addConjureButton("ConjureWater", -150, "Ability_Mage_ConjureWater11", "Conjure Water", "cast conjure water")
-	addConjureButton("RitualRefreshment", -180, "Spell_Arcane_MassDispel", "Ritual of Refreshment (level 70+)", "cast ritual of refreshment", 70)
+	pFrame.addButton("Conjure", -120, 0, "Ability_Mage_ConjureWater11", "Mage Conjuring")
+	.doLeft = function(pButton)
+		MultiBot.ShowHideSwitch(pButton.getFrame("Conjure"))
+	end
+
+	local conjureFrame = pFrame.addFrame("Conjure", -122, 30)
+	conjureFrame:Hide()
+
+	addConjureButton(conjureFrame, "ConjureFood", 0, "Ability_Mage_ConjureFoodRank10", "Conjure Food", "cast conjure food")
+	addConjureButton(conjureFrame, "ConjureWater", 26, "Ability_Mage_ConjureWater11", "Conjure Water", "cast conjure water")
+	addConjureButton(conjureFrame, "RitualRefreshment", 52, "Spell_Arcane_MassDispel", "Ritual of Refreshment (level 70+)", "cast ritual of refreshment", 70)
 
 	-- STRATEGIES --
 
