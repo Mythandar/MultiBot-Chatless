@@ -78,7 +78,6 @@ UI\MultiBotItem.lua
 UI\MultiBotTalentFrame.lua
 UI\MultiBotHunterQuickFrame.lua
 UI\MultiBotShamanQuickFrame.lua
-UI\MultiBotMageQuickFrame.lua
 UI\MultiBotAceUI.lua
 UI\MultiBotQuestUIShared.lua
 UI\MultiBotPromptDialog.lua

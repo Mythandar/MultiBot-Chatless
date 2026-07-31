@@ -1437,11 +1437,6 @@ function MultiBot.HandleMultiBotEvent(event, ...)
 			if shamanQuick and shamanQuick.RefreshFromGroup then
 				shamanQuick:RefreshFromGroup()
 			end
-
-			local mageQuick = MultiBot and MultiBot.MageQuick
-			if mageQuick and mageQuick.RefreshFromGroup then
-				mageQuick:RefreshFromGroup()
-			end
 		end
 
 		if event ~= "PLAYER_ENTERING_WORLD" then

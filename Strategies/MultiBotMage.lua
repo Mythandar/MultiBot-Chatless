@@ -1,4 +1,32 @@
 MultiBot.addMage = function(pFrame, pCombat, pNormal)
+	local function getBotLevel(botName)
+		local raidCount = GetNumRaidMembers and GetNumRaidMembers() or 0
+		local partyCount = GetNumPartyMembers and GetNumPartyMembers() or 0
+		local prefix = raidCount > 0 and "raid" or "party"
+		local count = raidCount > 0 and raidCount or partyCount
+		for index = 1, count do
+			local unit = prefix .. index
+			if UnitExists(unit) and UnitName(unit) == botName then
+				return tonumber(UnitLevel(unit))
+			end
+		end
+	end
+
+	local function addConjureButton(name, x, icon, tip, command, minimumLevel)
+		pFrame.addButton(name, x, 0, icon, tip).doLeft = function(pButton)
+			local botName = pButton.getName and pButton.getName() or ""
+			if botName == "" then return end
+			local botLevel = minimumLevel and getBotLevel(botName) or nil
+			if botLevel and botLevel < minimumLevel then
+				if UIErrorsFrame then
+					UIErrorsFrame:AddMessage("Ritual of Refreshment requires level " .. minimumLevel, 1, 0.2, 0.2, 1)
+				end
+				return
+			end
+			SendChatMessage(command, "WHISPER", nil, botName)
+		end
+	end
+
 	local tButton = pFrame.addButton("Buff", 0, 0, "inv_elemental_primal_mana", MultiBot.L("tips.mage.buff.master"))
 	tButton.doLeft = function(pButton)
 		MultiBot.ShowHideSwitch(pButton.parent.frames["Buff"])
@@ -154,6 +182,11 @@ MultiBot.addMage = function(pFrame, pCombat, pNormal)
 			pButton.getButton("DpsAoe").setDisable()
 		end
 	end
+
+	-- MAGE UTILITIES --
+	addConjureButton("ConjureFood", -120, "Ability_Mage_ConjureFoodRank10", "Conjure Food", "cast conjure food")
+	addConjureButton("ConjureWater", -150, "Ability_Mage_ConjureWater11", "Conjure Water", "cast conjure water")
+	addConjureButton("RitualRefreshment", -180, "Spell_Arcane_MassDispel", "Ritual of Refreshment (level 70+)", "cast ritual of refreshment", 70)
 
 	-- STRATEGIES --
 

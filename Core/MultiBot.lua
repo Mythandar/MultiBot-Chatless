@@ -130,7 +130,6 @@ end
 local MAIN_VISIBILITY_EXCLUDED_FRAMES = {
   ShamanQuick = true,
   HunterQuick = true,
-  MageQuick = true,
 }
 
 function MultiBot.ShouldAffectMainVisibility(frameKey)
