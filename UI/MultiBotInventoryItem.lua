@@ -446,7 +446,7 @@ local function handleInventoryItemClick(button)
         return
     end
 
-    if action == "e" or action == "give" then
+    if action == "e" or action == "t" then
         sendInventoryItemCommand(action, button, botName)
         return
     end
