@@ -4,7 +4,7 @@ local T = MultiBot.TeleportBrowser or {}
 MultiBot.TeleportBrowser = T
 
 local VISIBLE_ROWS, PAGE_SIZE = 20, 18
-local VIEW_W, VIEW_H = 610, 465
+local VIEW_W, VIEW_H = 610, 405
 
 local CONTINENTS = {
     world = { key = "world", label = "World" },
@@ -20,6 +20,28 @@ local CAPITALS = {
     { "Darnassus", "Darnassus", "kalimdor", 9950, 2284 }, { "The Exodar", "TheExodar", "kalimdor", -3966, -11654 },
     { "Orgrimmar", "Orgrimmar", "kalimdor", 1630, -4374 }, { "Thunder Bluff", "ThunderBluff", "kalimdor", -1277, 125 },
     { "Shattrath", "Shattrath", "outland", -1838, 5302 }, { "Dalaran", "Dalaran", "northrend", 5808, 588 },
+}
+
+local HUBS = {
+    ek = {
+        { "Aerie Peak", "AeriePeak", 260, -2125 }, { "Chillwind Camp", "ChillwindCamp", 968, -1444 },
+        { "Menethil Harbor", "MenethilHarbor", -3769, -744 }, { "Thelsamar", "Thelsamar", -5353, -2949 },
+        { "Sentinel Hill", "SentinelHill", -10624, 1097 }, { "Lakeshire", "Lakeshire", -9267, -2189 },
+        { "Darkshire", "Darkshire", -10573, -1183 }, { "Booty Bay", "BootyBay", -14297, 531 },
+    },
+    kalimdor = {
+        { "Auberdine", "Auberdine", 6501, 482 }, { "Astranaar", "Astranaar", 2676, -423 },
+        { "Ratchet", "Ratchet", -957, -3755 }, { "Gadgetzan", "Gadgetzan", -7177, -3785 },
+        { "Cenarion Hold", "CenarionHold", -6818, 734 },
+    },
+    outland = {
+        { "Honor Hold", "HonorHold", -748, 2682 }, { "Thrallmar", "Thrallmar", 156, 2673 },
+        { "Cenarion Refuge", "CenarionRefuge", -224, 5488 }, { "Area 52", "Area52", 3043, 3681 },
+    },
+    northrend = {
+        { "Valiance Keep", "ValianceKeep", 2214, 5273 }, { "Warsong Hold", "WarsongHold", 2741, 6097 },
+        { "Wyrmrest Temple", "WyrmrestTemple", 3556, 265 }, { "Argent Tournament", "ArgentTournament", 8516, 629 },
+    },
 }
 
 local REGIONS = {
@@ -108,13 +130,16 @@ function T:AddPin(item, labeled)
     local px, py = self:MapPoint(continent, item.x, item.y)
     if not px or px < 0 or px > 1 or py < 0 or py > 1 then return end
     local pin = CreateFrame("Button", nil, self.mapContent)
-    pin:SetSize(labeled and 100 or 14, 18)
+    pin:SetSize(labeled and 145 or 22, labeled and 24 or 22)
     pin:SetPoint("CENTER", self.mapContent, "TOPLEFT", px * self.mapWidth, -py * self.mapHeight)
-    local dot = pin:CreateTexture(nil, "OVERLAY"); dot:SetSize(13, 13); dot:SetPoint("LEFT")
+    local glow = pin:CreateTexture(nil, "ARTWORK"); glow:SetSize(labeled and 24 or 21, labeled and 24 or 21); glow:SetPoint("LEFT")
+    glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); glow:SetBlendMode("ADD"); glow:SetVertexColor(1, .78, .1, .9)
+    local dot = pin:CreateTexture(nil, "OVERLAY"); dot:SetSize(labeled and 17 or 15, labeled and 17 or 15); dot:SetPoint("CENTER", glow)
     dot:SetTexture("Interface\\Minimap\\POIIcons"); dot:SetTexCoord(0, .125, 0, .125)
     if labeled then
-        local label = pin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("LEFT", dot, "RIGHT", 2, 0); label:SetText(item.label or item.name); label:SetJustifyH("LEFT")
+        local label = pin:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", glow, "RIGHT", 3, 0); label:SetText(item.label or item.name); label:SetJustifyH("LEFT")
+        label:SetShadowColor(0, 0, 0, 1); label:SetShadowOffset(1, -1)
     end
     pin:SetScript("OnClick", function() teleport(item.tele or item.name) end)
     pin:SetScript("OnEnter", function(self)
@@ -156,14 +181,23 @@ function T:RenderMap()
     local textures = self:AcquireMapTextures(continent)
     for index, tile in ipairs(self.mapTiles) do
         local column, row = (index - 1) % 4, math.floor((index - 1) / 4)
-        tile:ClearAllPoints(); tile:SetSize(self.mapWidth / 4 + 1, self.mapHeight / 3 + 1)
-        tile:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", column * self.mapWidth / 4, -row * self.mapHeight / 3)
+        local sourceWidth, sourceHeight = column == 3 and 234 or 256, row == 2 and 156 or 256
+        local x = (math.min(column, 3) * 256) * self.mapWidth / 1002
+        local y = (math.min(row, 2) * 256) * self.mapHeight / 668
+        tile:ClearAllPoints(); tile:SetSize(sourceWidth * self.mapWidth / 1002 + 1, sourceHeight * self.mapHeight / 668 + 1)
+        tile:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", x, -y)
+        tile:SetTexCoord(0, sourceWidth / 256, 0, sourceHeight / 256)
         tile:SetTexture(textures[index] or ("Interface\\WorldMap\\" .. continent.art .. "\\" .. continent.art .. index)); tile:Show()
     end
     self.mapScroll:SetHorizontalScroll(math.max(0, math.min(self.mapWidth - VIEW_W, centerX * self.mapWidth - VIEW_W / 2)))
     self.mapScroll:SetVerticalScroll(math.max(0, math.min(self.mapHeight - VIEW_H, centerY * self.mapHeight - VIEW_H / 2)))
     for _, capital in ipairs(capitalFor(self.continentKey)) do
         self:AddPin({ label = capital[1], tele = capital[2], mapId = continent.mapId, x = capital[4], y = capital[5] }, true)
+    end
+    if self.zoom >= 2 then
+        for _, hub in ipairs(HUBS[self.continentKey] or {}) do
+            self:AddPin({ label = hub[1], tele = hub[2], mapId = continent.mapId, x = hub[3], y = hub[4] }, true)
+        end
     end
     if self.zoom >= 3 then for _, item in ipairs(self.serverItems or {}) do self:AddPin(item, false) end end
     self.zoomText:SetText("Zoom " .. self.zoom .. "/3")
@@ -196,7 +230,7 @@ function T:ShowContinent(key)
     for _, capital in ipairs(capitalFor(key)) do table.insert(entries, { label = capital[1], tele = capital[2], indent = 1, detail = "Capital" }) end
     table.insert(entries, { label = "REGIONS", header = true })
     for _, group in ipairs(REGIONS[key] or {}) do table.insert(entries, { label = group[1], group = group, arrow = "|cffffd100> |r", indent = 1, detail = "Region" }) end
-    self:Display(entries); self:Message("Choose a capital or drill down through a region"); self:RenderMap()
+    self:Display(entries); self:Message("Choose a capital or drill down through a region"); self:RenderMap(); self:LoadMapPins(key)
 end
 
 function T:ShowRegion(group)
@@ -241,9 +275,18 @@ end
 function T:Request(search, offset)
     local continent = CONTINENTS[self.continentKey]
     if not continent or not MultiBot.Comm or not MultiBot.Comm.RequestTeleports then self:Message("Teleport bridge unavailable"); return end
-    self.pendingSearch, self.offset = search or "", math.max(0, tonumber(offset) or 0)
-    self.search:SetText(self.pendingSearch); self.zoom = 3; self:RenderMap(); self:Message("Loading " .. self.pendingSearch .. "...")
+    self.pendingLabel = search or ""
+    self.pendingSearch = self.pendingLabel:gsub("[^%w]", "")
+    self.offset = math.max(0, tonumber(offset) or 0); self.loadingPins = nil
+    self.search:SetText(self.pendingLabel); self.zoom = 3; self:RenderMap(); self:Message("Loading " .. self.pendingLabel .. "...")
     MultiBot.Comm.RequestTeleports(self.pendingSearch, continent.mapId, self.offset)
+end
+
+function T:LoadMapPins(key)
+    local continent = CONTINENTS[key]
+    if not continent or not MultiBot.Comm or not MultiBot.Comm.RequestTeleports then return end
+    self.loadingPins, self.pinLoadKey, self.pinLoadItems = true, key, {}
+    MultiBot.Comm.RequestTeleports("", continent.mapId, 0)
 end
 
 function T:Build()
@@ -252,6 +295,7 @@ function T:Build()
     frame:SetSize(1000, 660); frame:SetPoint("CENTER"); frame:SetFrameStrata("DIALOG"); frame:SetMovable(true); frame:EnableMouse(true); frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self) self:StartMoving() end); frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     frame:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })
+    frame:SetBackdropColor(0, 0, 0, .97)
     frame:Hide(); self.frame = frame
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOP", 0, -16); title:SetText("AzerothCore Teleport Browser")
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -5, -5)
@@ -264,6 +308,10 @@ function T:Build()
     local world = makeButton(frame, "WORLD", 95, 26); world:SetPoint("TOPLEFT", 25, -105); world:SetScript("OnClick", function() T:ShowWorld() end)
     local dungeons = makeButton(frame, "DUNGEONS", 105, 26); dungeons:SetPoint("LEFT", world, "RIGHT", 6, 0); dungeons:SetScript("OnClick", function() T:ShowInstances("dungeons") end)
     local raids = makeButton(frame, "RAIDS", 90, 26); raids:SetPoint("LEFT", dungeons, "RIGHT", 6, 0); raids:SetScript("OnClick", function() T:ShowInstances("raids") end)
+
+    local leftPanel = CreateFrame("Frame", nil, frame); leftPanel:SetPoint("TOPLEFT", 18, -96); leftPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", 365, 62)
+    leftPanel:SetFrameLevel(frame:GetFrameLevel()); leftPanel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+    leftPanel:SetBackdropColor(.015, .02, .025, .94); leftPanel:SetBackdropBorderColor(.55, .42, .18, 1)
 
     self.rows = {}
     for index = 1, VISIBLE_ROWS do
@@ -312,7 +360,18 @@ function T:Toggle()
 end
 
 function MultiBot.OnBridgeTeleports(result)
-    T.serverItems = result.items or {}; local entries = { { label = (T.pendingSearch or "DESTINATIONS"):upper(), header = true } }
+    if T.loadingPins then
+        if T.pinLoadKey ~= T.continentKey then T.loadingPins = nil; return end
+        for _, item in ipairs(result.items or {}) do table.insert(T.pinLoadItems, item) end
+        local nextOffset = (result.offset or 0) + (result.pageSize or 40)
+        if nextOffset < (result.total or 0) and nextOffset < 240 then
+            MultiBot.Comm.RequestTeleports("", CONTINENTS[T.pinLoadKey].mapId, nextOffset)
+        else
+            T.serverItems, T.loadingPins = T.pinLoadItems, nil; T:RenderMap()
+        end
+        return
+    end
+    T.serverItems = result.items or {}; local entries = { { label = (T.pendingLabel or "DESTINATIONS"):upper(), header = true } }
     for _, item in ipairs(T.serverItems) do table.insert(entries, { label = item.name, tele = item.name, detail = "Teleport" }) end
     T:Display(entries, result.total, result.offset); T:Message((result.total or #entries) .. " matching destinations"); T:RenderMap()
 end
