@@ -151,22 +151,42 @@ function T:ClearZoneButtons()
     self.zoneButtons = {}
 end
 
-function T:MapPoint(continent, x, y, invertY)
+function T:ClearExploration()
+    for _, texture in ipairs(self.explorationTiles or {}) do texture:Hide() end
+    self.explorationTiles = {}
+end
+
+function T:DrawExploration(overlays)
+    self:ClearExploration()
+    for _, overlay in ipairs(overlays or {}) do
+        local columns, rows = math.ceil(overlay.width / 256), math.ceil(overlay.height / 256)
+        for index = 1, columns * rows do
+            local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
+            local width, height = math.min(256, overlay.width - column * 256), math.min(256, overlay.height - row * 256)
+            local texture = self.mapContent:CreateTexture(nil, "BORDER")
+            texture:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", (overlay.x + column * 256) * self.mapWidth / 1002, -(overlay.y + row * 256) * self.mapHeight / 668)
+            texture:SetSize(width * self.mapWidth / 1002 + 1, height * self.mapHeight / 668 + 1)
+            texture:SetTexture(overlay.texture .. index); texture:SetTexCoord(0, width / 256, 0, height / 256); texture:Show()
+            table.insert(self.explorationTiles, texture)
+        end
+    end
+end
+
+function T:MapPoint(continent, x, y)
     if not continent or not continent.bounds or not x or not y then return end
     local minX, maxX, minY, maxY = unpack(continent.bounds)
-    local horizontal = invertY and -y or y
-    return (horizontal - minY) / (maxY - minY), (maxX - x) / (maxX - minX)
+    return (-y - minY) / (maxY - minY), (maxX - x) / (maxX - minX)
 end
 
 function T:AddPin(item, labeled, bounds, red)
     local continent = CONTINENTS[self.continentKey]
     if not continent or item.mapId ~= continent.mapId then return end
     local pointSource = bounds and { bounds = bounds } or continent
-    local px, py = self:MapPoint(pointSource, item.x, item.y, bounds and true or false)
+    local px, py = self:MapPoint(pointSource, item.x, item.y)
     if not px or px < 0 or px > 1 or py < 0 or py > 1 then return end
     local pin = CreateFrame("Button", nil, self.mapContent)
     pin:SetSize(labeled and 145 or 22, labeled and 24 or 22)
-    pin:SetPoint("CENTER", self.mapContent, "TOPLEFT", px * self.mapWidth, -py * self.mapHeight)
+    pin:SetPoint("LEFT", self.mapContent, "TOPLEFT", px * self.mapWidth - (labeled and 12 or 10), -py * self.mapHeight)
     local glow = pin:CreateTexture(nil, "ARTWORK"); glow:SetSize(labeled and 24 or 21, labeled and 24 or 21); glow:SetPoint("LEFT")
     glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); glow:SetBlendMode("ADD"); glow:SetVertexColor(red and 1 or 1, red and .08 or .78, red and .08 or .1, 1)
     local dot = pin:CreateTexture(nil, "OVERLAY"); dot:SetSize(labeled and 17 or 15, labeled and 17 or 15); dot:SetPoint("CENTER", glow)
@@ -188,32 +208,29 @@ end
 function T:AddZoneHotspot(name, zone)
     local continent = CONTINENTS[self.continentKey]
     local minX, maxX, minY, maxY = unpack(zone.bounds)
-    local left, top = self:MapPoint(continent, maxX, -maxY)
-    local right, bottom = self:MapPoint(continent, minX, -minY)
+    local left, top = self:MapPoint(continent, maxX, -minY)
+    local right, bottom = self:MapPoint(continent, minX, -maxY)
     if not left or not right then return end
     local overlay
     for _, candidate in ipairs(self.mapOverlays or {}) do
         if candidate.texture and candidate.texture:lower():find((zone.overlay or ""):lower(), 1, true) then overlay = candidate; break end
     end
     local button = CreateFrame("Button", nil, self.mapContent)
+    button:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", left * self.mapWidth, -top * self.mapHeight)
+    button:SetSize(math.max(24, (right - left) * self.mapWidth), math.max(20, (bottom - top) * self.mapHeight))
     if overlay then
-        button:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", overlay.x * self.mapWidth / 1002, -overlay.y * self.mapHeight / 668)
-        button:SetSize(overlay.width * self.mapWidth / 1002, overlay.height * self.mapHeight / 668)
         button.highlights = {}
         local columns, rows = math.ceil(overlay.width / 256), math.ceil(overlay.height / 256)
         for index = 1, columns * rows do
             local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
             local width, height = math.min(256, overlay.width - column * 256), math.min(256, overlay.height - row * 256)
-            local texture = button:CreateTexture(nil, "ARTWORK")
-            texture:SetPoint("TOPLEFT", button, "TOPLEFT", column * 256 * self.mapWidth / 1002, -row * 256 * self.mapHeight / 668)
+            local texture = self.mapContent:CreateTexture(nil, "ARTWORK")
+            texture:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", (overlay.x + column * 256) * self.mapWidth / 1002, -(overlay.y + row * 256) * self.mapHeight / 668)
             texture:SetSize(width * self.mapWidth / 1002, height * self.mapHeight / 668)
             texture:SetTexture(overlay.texture .. index); texture:SetTexCoord(0, width / 256, 0, height / 256)
             texture:SetVertexColor(1, .75, .05); texture:SetBlendMode("ADD"); texture:SetAlpha(.55); texture:Hide()
             table.insert(button.highlights, texture)
         end
-    else
-        button:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", left * self.mapWidth, -top * self.mapHeight)
-        button:SetSize(math.max(24, (right - left) * self.mapWidth), math.max(20, (bottom - top) * self.mapHeight))
     end
     button:SetScript("OnEnter", function(self)
         for _, texture in ipairs(self.highlights or {}) do texture:Show() end
@@ -240,7 +257,7 @@ function T:AcquireMapTextures(continent, zoneName)
             local source = _G["WorldMapDetailTile" .. index]
             textures[index] = source and source:GetTexture()
         end
-        if not zoneName and GetNumMapOverlays and GetMapOverlayInfo then
+        if GetNumMapOverlays and GetMapOverlayInfo then
             for index = 1, GetNumMapOverlays() do
                 local texture, width, height, x, y = GetMapOverlayInfo(index)
                 if texture then table.insert(overlays, { texture = texture, width = width, height = height, x = x, y = y }) end
@@ -253,7 +270,7 @@ end
 
 function T:RenderMap()
     local continent = CONTINENTS[self.continentKey]
-    self:ClearPins(); self:ClearZoneButtons()
+    self:ClearPins(); self:ClearZoneButtons(); self:ClearExploration()
     if not continent then
         for _, tile in ipairs(self.mapTiles) do tile:Hide() end
         self.mapHint:SetText("Choose a continent"); self.mapHint:Show(); return
@@ -277,6 +294,7 @@ function T:RenderMap()
         tile:SetTexCoord(0, sourceWidth / 256, 0, sourceHeight / 256)
         tile:SetTexture(textures[index] or ("Interface\\WorldMap\\" .. continent.art .. "\\" .. continent.art .. index)); tile:Show()
     end
+    if zone then self:DrawExploration(overlays) end
     self.mapScroll:SetHorizontalScroll(math.max(0, math.min(self.mapWidth - VIEW_W, centerX * self.mapWidth - VIEW_W / 2)))
     self.mapScroll:SetVerticalScroll(math.max(0, math.min(self.mapHeight - VIEW_H, centerY * self.mapHeight - VIEW_H / 2)))
     if zone then
@@ -441,7 +459,7 @@ function T:Build()
     self.mapTiles = {}
     for index = 1, 12 do local tile = self.mapContent:CreateTexture(nil, "BACKGROUND"); self.mapTiles[index] = tile end
     self.mapHint = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapHint:SetPoint("CENTER"); self.mapHint:SetText("Choose a continent"); bumpFont(self.mapHint)
-    self.pins, self.zoneButtons = {}, {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
+    self.pins, self.zoneButtons, self.explorationTiles = {}, {}, {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
     self.mapScroll:SetScript("OnMouseWheel", function(_, delta) T:SetZoom(T.zoom + (delta > 0 and 1 or -1)) end)
     self.mapScroll:SetScript("OnMouseDown", function(self)
         local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); T.dragX, T.dragY = x / scale, y / scale; T.dragH, T.dragV = self:GetHorizontalScroll(), self:GetVerticalScroll(); T.dragging = true
