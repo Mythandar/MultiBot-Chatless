@@ -107,6 +107,9 @@ local function ensureBridgeState()
   state.gameObjects = state.gameObjects or {}
   state.gameObjectSeq = state.gameObjectSeq or 0
   state.gameObjectActive = state.gameObjectActive or {}
+  state.teleportSeq = state.teleportSeq or 0
+  state.teleportActive = state.teleportActive or nil
+  state.teleports = state.teleports or {}
   state.talentSpecs = state.talentSpecs or {}
   state.talentSpecSeq = state.talentSpecSeq or 0
   state.talentSpecActive = state.talentSpecActive or nil
@@ -743,6 +746,20 @@ function Comm.RequestGameObjects(name)
     return false
   end
 
+  return token
+end
+
+function Comm.RequestTeleports(search, mapId, offset)
+  local state = ensureBridgeState()
+  if not state.connected and not state.bootstrapPending then return false end
+  state.teleportSeq = (tonumber(state.teleportSeq) or 0) + 1
+  local token = tostring(math.floor(safeNow() * 1000)) .. "-tele-" .. tostring(state.teleportSeq)
+  state.teleportActive = { token = token, items = {}, search = trim(search), mapId = mapId, offset = tonumber(offset) or 0 }
+  local encodedMap = mapId == nil and "" or tostring(mapId)
+  if not Comm.Send("GET", "TELEPORTS~" .. token .. "~" .. urlEncodeField(search or "") .. "~" .. encodedMap .. "~" .. tostring(tonumber(offset) or 0)) then
+    state.teleportActive = nil
+    return false
+  end
   return token
 end
 
@@ -2784,6 +2801,54 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
     state.connected = true
     state.lastError = nil
     return Comm.ApplyGameObjectDonePayload(payload)
+  end
+
+  if opcode == "TELEPORTS_BEGIN" then
+    local token, rest = splitOnce(payload or "", "~")
+    local total, rest2 = splitOnce(rest, "~")
+    local offset, pageSize = splitOnce(rest2, "~")
+    local active = state.teleportActive
+    if active and active.token == trim(token) then
+      active.items = {}
+      active.total = tonumber(total) or 0
+      active.offset = tonumber(offset) or 0
+      active.pageSize = tonumber(pageSize) or 40
+    end
+    return true
+  end
+
+  if opcode == "TELEPORTS_ITEM" then
+    local token, rest = splitOnce(payload or "", "~")
+    local id, rest2 = splitOnce(rest, "~")
+    local mapId, rest3 = splitOnce(rest2, "~")
+    local x, rest4 = splitOnce(rest3, "~")
+    local y, rest5 = splitOnce(rest4, "~")
+    local z, name = splitOnce(rest5, "~")
+    local active = state.teleportActive
+    if active and active.token == trim(token) then
+      table.insert(active.items, { id = tonumber(id) or 0, mapId = tonumber(mapId) or 0, x = tonumber(x) or 0, y = tonumber(y) or 0, z = tonumber(z) or 0, name = trim(urlDecodeField(name)) })
+    end
+    return true
+  end
+
+  if opcode == "TELEPORTS_END" then
+    local active = state.teleportActive
+    if active and active.token == trim(payload or "") then
+      state.teleports = active
+      state.teleportActive = nil
+      if MultiBot.OnBridgeTeleports then MultiBot.OnBridgeTeleports(active) end
+    end
+    return true
+  end
+
+  if opcode == "TELEPORTS_ERROR" then
+    local token, reason = splitOnce(payload or "", "~")
+    local active = state.teleportActive
+    if active and active.token == trim(token) then
+      state.teleportActive = nil
+      if MultiBot.OnBridgeTeleportsError then MultiBot.OnBridgeTeleportsError(trim(reason)) end
+    end
+    return true
   end
 
   if opcode == "INV_BEGIN" then

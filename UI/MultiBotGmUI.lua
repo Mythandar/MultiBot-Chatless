@@ -44,8 +44,15 @@ local GM_UI_BUTTONS = {
         end,
     },
     {
-        label = "Summon",
+        label = "Teleport",
         y = 136,
+        icon = "spell_arcane_teleportundercity",
+        tip = "Open the AzerothCore teleport browser",
+        click = function() if MultiBot.TeleportBrowser then MultiBot.TeleportBrowser:Toggle() end end,
+    },
+    {
+        label = "Summon",
+        y = 170,
         icon = "spell_holy_prayerofspirit",
         tip = "tips.game.summon",
         click = function()
@@ -54,7 +61,7 @@ local GM_UI_BUTTONS = {
     },
     {
         label = "Appear",
-        y = 170,
+        y = 204,
         icon = "spell_holy_divinespirit",
         tip = "tips.game.appear",
         click = function()
@@ -208,7 +215,7 @@ function MultiBot.BuildGmUI(tMultiBar)
         mastersFrame.addButton(definition.label, 0, definition.y, definition.icon, MultiBot.L(definition.tip)).doLeft = definition.click
     end
 
-    mastersFrame.addButton("DelSV", 0, 204, "ability_golemstormbolt", MultiBot.L("tips.game.delsv"), "ActionButtonTemplate")
+    mastersFrame.addButton("DelSV", 0, 238, "ability_golemstormbolt", MultiBot.L("tips.game.delsv"), "ActionButtonTemplate")
         .doLeft = function()
             MultiBot.ShowDeleteSVPrompt()
         end

@@ -104,6 +104,7 @@ UI\MultiBotMainUI.lua
 Features\MultiBotStatsPersistence.lua
 Features\MultiBotStatsDurability.lua
 UI\MultiBotGmUI.lua
+UI\MultiBotTeleportFrame.lua
 UI\MultiBotRTSCUI.lua
 UI\MultiBotRTIUI.lua
 UI\MultiBotDisperseUI.lua
