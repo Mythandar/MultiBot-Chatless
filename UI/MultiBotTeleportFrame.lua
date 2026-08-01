@@ -3,121 +3,92 @@ if not MultiBot then return end
 local T = MultiBot.TeleportBrowser or {}
 MultiBot.TeleportBrowser = T
 
-local PAGE_SIZE, VISIBLE_ROWS = 18, 18
+local VISIBLE_ROWS, PAGE_SIZE = 20, 18
+local VIEW_W, VIEW_H = 610, 465
+
 local CONTINENTS = {
-    { key = "world", label = "World" },
-    { key = "ek", label = "Eastern Kingdoms", mapId = 0, art = "Azeroth", bounds = { -15000, 4000, -5000, 15000 } },
-    { key = "kalimdor", label = "Kalimdor", mapId = 1, art = "Kalimdor", bounds = { -12000, 11000, -8000, 8000 } },
-    { key = "outland", label = "Outland", mapId = 530, art = "Expansion01", bounds = { -7000, 6000, -7000, 6000 } },
-    { key = "northrend", label = "Northrend", mapId = 571, art = "Northrend", bounds = { -6000, 9000, -7000, 6000 } },
-    { key = "dungeons", label = "Dungeons" },
+    world = { key = "world", label = "World" },
+    ek = { key = "ek", label = "Eastern Kingdoms", mapId = 0, uiIndex = 2, art = "Azeroth", bounds = { -15000, 4000, -5000, 15000 } },
+    kalimdor = { key = "kalimdor", label = "Kalimdor", mapId = 1, uiIndex = 1, art = "Kalimdor", bounds = { -12000, 11000, -8000, 8000 } },
+    outland = { key = "outland", label = "Outland", mapId = 530, uiIndex = 3, art = "Expansion01", bounds = { -7000, 6000, -7000, 6000 } },
+    northrend = { key = "northrend", label = "Northrend", mapId = 571, uiIndex = 4, art = "Northrend", bounds = { -6000, 9000, -7000, 6000 } },
 }
 
-local NAVIGATION = {
-    world = {
-        { section = "Main capitals" },
-        { "Stormwind", "Stormwind", 0, -8833, 629, 1 }, { "Ironforge", "Ironforge", 0, -4919, -940, 1 },
-        { "Darnassus", "Darnassus", 1, 9950, 2284, 1 }, { "The Exodar", "TheExodar", 530, -3966, -11654, 1 },
-        { "Orgrimmar", "Orgrimmar", 1, 1630, -4374, 1 }, { "Thunder Bluff", "ThunderBluff", 1, -1277, 125, 1 },
-        { "Undercity", "Undercity", 0, 1584, 240, 1 }, { "Silvermoon City", "SilvermoonCity", 530, 9488, -7279, 1 },
-        { "Shattrath", "Shattrath", 530, -1838, 5302, 1 }, { "Dalaran", "Dalaran", 571, 5808, 588, 1 },
-    },
+local CAPITALS = {
+    { "Stormwind", "Stormwind", "ek", -8833, 629 }, { "Ironforge", "Ironforge", "ek", -4919, -940 },
+    { "Undercity", "Undercity", "ek", 1584, 240 }, { "Silvermoon City", "SilvermoonCity", "ek", 9488, -7279 },
+    { "Darnassus", "Darnassus", "kalimdor", 9950, 2284 }, { "The Exodar", "TheExodar", "kalimdor", -3966, -11654 },
+    { "Orgrimmar", "Orgrimmar", "kalimdor", 1630, -4374 }, { "Thunder Bluff", "ThunderBluff", "kalimdor", -1277, 125 },
+    { "Shattrath", "Shattrath", "outland", -1838, 5302 }, { "Dalaran", "Dalaran", "northrend", 5808, 588 },
+}
+
+local REGIONS = {
     ek = {
-        { section = "Capitals" }, { "Stormwind", "Stormwind", 0, -8833, 629, 1 }, { "Ironforge", "Ironforge", 0, -4919, -940, 1 },
-        { "Undercity", "Undercity", 0, 1584, 240, 1 }, { "Silvermoon City", "SilvermoonCity", 530, 9488, -7279, 1 },
-        { section = "Main areas" },
-        { "Elwynn Forest", nil, 0, nil, nil, 2 }, { "Westfall", nil, 0, nil, nil, 2 }, { "Redridge Mountains", nil, 0, nil, nil, 2 },
-        { "Duskwood", nil, 0, nil, nil, 2 }, { "Dun Morogh", nil, 0, nil, nil, 2 }, { "Loch Modan", nil, 0, nil, nil, 2 },
-        { "Wetlands", nil, 0, nil, nil, 2 }, { "Arathi Highlands", nil, 0, nil, nil, 2 }, { "Hinterlands", nil, 0, nil, nil, 2 },
-        { "Stranglethorn Vale", nil, 0, nil, nil, 2 }, { "Western Plaguelands", nil, 0, nil, nil, 2 }, { "Eastern Plaguelands", nil, 0, nil, nil, 2 },
+        { "Northern Kingdoms", { "Eversong Woods", "Ghostlands", "Tirisfal Glades", "Silverpine Forest", "Western Plaguelands", "Eastern Plaguelands", "Hinterlands" } },
+        { "Central Kingdoms", { "Dun Morogh", "Loch Modan", "Wetlands", "Arathi Highlands", "Hillsbrad Foothills", "Alterac Mountains" } },
+        { "Southern Kingdoms", { "Elwynn Forest", "Westfall", "Redridge Mountains", "Duskwood", "Stranglethorn Vale", "Badlands", "Searing Gorge", "Burning Steppes", "Swamp of Sorrows", "Blasted Lands" } },
     },
     kalimdor = {
-        { section = "Capitals" }, { "Darnassus", "Darnassus", 1, 9950, 2284, 1 }, { "The Exodar", "TheExodar", 530, -3966, -11654, 1 },
-        { "Orgrimmar", "Orgrimmar", 1, 1630, -4374, 1 }, { "Thunder Bluff", "ThunderBluff", 1, -1277, 125, 1 },
-        { section = "Main areas" },
-        { "Teldrassil", nil, 1, nil, nil, 2 }, { "Darkshore", nil, 1, nil, nil, 2 }, { "Ashenvale", nil, 1, nil, nil, 2 },
-        { "Durotar", nil, 1, nil, nil, 2 }, { "The Barrens", nil, 1, nil, nil, 2 }, { "Mulgore", nil, 1, nil, nil, 2 },
-        { "Stonetalon Mountains", nil, 1, nil, nil, 2 }, { "Desolace", nil, 1, nil, nil, 2 }, { "Feralas", nil, 1, nil, nil, 2 },
-        { "Tanaris", nil, 1, nil, nil, 2 }, { "Un'Goro Crater", nil, 1, nil, nil, 2 }, { "Winterspring", nil, 1, nil, nil, 2 },
+        { "Northern Kalimdor", { "Teldrassil", "Darkshore", "Azuremyst Isle", "Bloodmyst Isle", "Winterspring", "Moonglade", "Felwood", "Ashenvale" } },
+        { "Central Kalimdor", { "Durotar", "The Barrens", "Mulgore", "Stonetalon Mountains", "Desolace", "Dustwallow Marsh" } },
+        { "Southern Kalimdor", { "Feralas", "Thousand Needles", "Tanaris", "Un'Goro Crater", "Silithus" } },
     },
     outland = {
-        { section = "Capital and hubs" }, { "Shattrath", "Shattrath", 530, -1838, 5302, 1 }, { "Honor Hold", nil, 530, nil, nil, 2 },
-        { "Thrallmar", nil, 530, nil, nil, 2 }, { "Area 52", nil, 530, nil, nil, 2 },
-        { section = "Main areas" }, { "Hellfire Peninsula", nil, 530, nil, nil, 2 }, { "Zangarmarsh", nil, 530, nil, nil, 2 },
-        { "Terokkar Forest", nil, 530, nil, nil, 2 }, { "Nagrand", nil, 530, nil, nil, 2 }, { "Blade's Edge Mountains", nil, 530, nil, nil, 2 },
-        { "Netherstorm", nil, 530, nil, nil, 2 }, { "Shadowmoon Valley", nil, 530, nil, nil, 2 },
+        { "Outland Regions", { "Hellfire Peninsula", "Zangarmarsh", "Terokkar Forest", "Nagrand", "Blade's Edge Mountains", "Netherstorm", "Shadowmoon Valley" } },
+        { "Major Hubs", { "Honor Hold", "Thrallmar", "Cenarion Refuge", "Area 52", "Wildhammer Stronghold", "Shadowmoon Village" } },
     },
     northrend = {
-        { section = "Capital and hubs" }, { "Dalaran", "Dalaran", 571, 5808, 588, 1 }, { "Valiance Keep", nil, 571, nil, nil, 2 },
-        { "Warsong Hold", nil, 571, nil, nil, 2 }, { "Wyrmrest Temple", nil, 571, nil, nil, 2 },
-        { section = "Main areas" }, { "Borean Tundra", nil, 571, nil, nil, 2 }, { "Howling Fjord", nil, 571, nil, nil, 2 },
-        { "Dragonblight", nil, 571, nil, nil, 2 }, { "Grizzly Hills", nil, 571, nil, nil, 2 }, { "Zul'Drak", nil, 571, nil, nil, 2 },
-        { "Sholazar Basin", nil, 571, nil, nil, 2 }, { "The Storm Peaks", nil, 571, nil, nil, 2 }, { "Icecrown", nil, 571, nil, nil, 2 },
+        { "Southern Northrend", { "Borean Tundra", "Howling Fjord", "Dragonblight", "Grizzly Hills" } },
+        { "Northern Northrend", { "Zul'Drak", "Sholazar Basin", "The Storm Peaks", "Icecrown", "Wintergrasp" } },
+        { "Major Hubs", { "Valiance Keep", "Warsong Hold", "Wyrmrest Temple", "Argent Tournament Grounds" } },
     },
 }
 
 local DUNGEONS = {
-    { "Ragefire Chasm", "RagefireChasm", 13, 20 }, { "The Deadmines", "Deadmines", 15, 25 },
-    { "Wailing Caverns", "WailingCaverns", 15, 25 }, { "Shadowfang Keep", "ShadowFangKeep", 18, 30 },
-    { "Blackfathom Deeps", "BlackfathomDeeps", 20, 30 }, { "The Stockade", "TheStockade", 22, 32 },
-    { "Gnomeregan", "Gnomeregan", 24, 34 }, { "Razorfen Kraul", "RazorfenKraul", 25, 35 },
-    { "Scarlet Monastery", "ScarletMonastery", 26, 45 }, { "Razorfen Downs", "RazorfenDowns", 35, 45 },
-    { "Uldaman", "Uldaman", 35, 45 }, { "Zul'Farrak", "ZulFarrak", 44, 54 }, { "Maraudon", "Maraudon", 46, 55 },
-    { "The Sunken Temple", "TheSunkenTemple", 50, 60 }, { "Blackrock Depths", "BlackrockDepths", 52, 60 },
-    { "Dire Maul", "DireMaulNorth", 55, 60 }, { "Scholomance", "Scholomance", 55, 60 },
-    { "Stratholme", "Stratholme", 55, 60 }, { "Blackrock Spire", "BlackrockSpire", 55, 60 },
-    { "Hellfire Ramparts", "HellfireRamparts", 58, 70 }, { "The Blood Furnace", "TheBloodFurnace", 59, 70 },
-    { "The Slave Pens", "TheSlavePens", 60, 70 }, { "The Underbog", "TheUnderbog", 61, 70 },
-    { "Mana-Tombs", "ManaTombs", 63, 70 }, { "Auchenai Crypts", "AuchenaiCrypts", 64, 70 },
-    { "Sethekk Halls", "SethekkHalls", 65, 70 }, { "Old Hillsbrad", "OldHillsbrad", 66, 70 },
-    { "The Mechanar", "TheMechanar", 68, 70 }, { "The Botanica", "TheBotanica", 68, 70 },
-    { "Utgarde Keep", "UtgardeKeep", 68, 75 }, { "The Nexus", "TheNexus", 69, 75 },
-    { "Azjol-Nerub", "AzjolNerub", 72, 77 }, { "Ahn'kahet", "AhnKahet", 73, 78 },
-    { "Drak'Tharon Keep", "DrakTharonKeep", 74, 79 }, { "Violet Hold", "VioletHold", 75, 80 },
-    { "Gundrak", "Gundrak", 76, 80 }, { "Halls of Stone", "HallsOfStone", 77, 80 }, { "Utgarde Pinnacle", "UtgardePinnacle", 78, 80 },
+    { "Ragefire Chasm", "RagefireChasm", 13, 20 }, { "The Deadmines", "Deadmines", 15, 25 }, { "Wailing Caverns", "WailingCaverns", 15, 25 },
+    { "Shadowfang Keep", "ShadowFangKeep", 18, 30 }, { "Blackfathom Deeps", "BlackfathomDeeps", 20, 30 }, { "The Stockade", "TheStockade", 22, 32 },
+    { "Gnomeregan", "Gnomeregan", 24, 34 }, { "Razorfen Kraul", "RazorfenKraul", 25, 35 }, { "Scarlet Monastery", "ScarletMonastery", 26, 45 },
+    { "Razorfen Downs", "RazorfenDowns", 35, 45 }, { "Uldaman", "Uldaman", 35, 45 }, { "Zul'Farrak", "ZulFarrak", 44, 54 },
+    { "Maraudon", "Maraudon", 46, 55 }, { "The Sunken Temple", "TheSunkenTemple", 50, 60 }, { "Blackrock Depths", "BlackrockDepths", 52, 60 },
+    { "Dire Maul", "DireMaulNorth", 55, 60 }, { "Scholomance", "Scholomance", 55, 60 }, { "Stratholme", "Stratholme", 55, 60 },
+    { "Hellfire Ramparts", "HellfireRamparts", 58, 70 }, { "The Blood Furnace", "TheBloodFurnace", 59, 70 }, { "The Slave Pens", "TheSlavePens", 60, 70 },
+    { "The Underbog", "TheUnderbog", 61, 70 }, { "Mana-Tombs", "ManaTombs", 63, 70 }, { "Auchenai Crypts", "AuchenaiCrypts", 64, 70 },
+    { "Sethekk Halls", "SethekkHalls", 65, 70 }, { "Old Hillsbrad", "OldHillsbrad", 66, 70 }, { "The Mechanar", "TheMechanar", 68, 70 },
+    { "The Botanica", "TheBotanica", 68, 70 }, { "Utgarde Keep", "UtgardeKeep", 68, 75 }, { "The Nexus", "TheNexus", 69, 75 },
+    { "Azjol-Nerub", "AzjolNerub", 72, 77 }, { "Ahn'kahet", "AhnKahet", 73, 78 }, { "Drak'Tharon Keep", "DrakTharonKeep", 74, 79 },
+    { "Violet Hold", "VioletHold", 75, 80 }, { "Gundrak", "Gundrak", 76, 80 }, { "Halls of Stone", "HallsOfStone", 77, 80 },
+    { "Utgarde Pinnacle", "UtgardePinnacle", 78, 80 },
 }
 
-local function saved()
-    MultiBotGlobalSave = MultiBotGlobalSave or {}
-    MultiBotGlobalSave.TeleportBrowser = MultiBotGlobalSave.TeleportBrowser or { favorites = {}, recent = {} }
-    return MultiBotGlobalSave.TeleportBrowser
-end
+local RAIDS = {
+    { "Molten Core", "MoltenCore", 60 }, { "Onyxia's Lair", "OnyxiasLair", 60 }, { "Blackwing Lair", "BlackwingLair", 60 },
+    { "Ruins of Ahn'Qiraj", "RuinsOfAhnQiraj", 60 }, { "Temple of Ahn'Qiraj", "TempleOfAhnQiraj", 60 },
+    { "Karazhan", "Karazhan", 70 }, { "Gruul's Lair", "GruulsLair", 70 }, { "Magtheridon's Lair", "MagtheridonsLair", 70 },
+    { "Serpentshrine Cavern", "SerpentshrineCavern", 70 }, { "Tempest Keep", "TempestKeep", 70 }, { "Black Temple", "BlackTemple", 70 },
+    { "Naxxramas", "Naxxramas", 80 }, { "The Eye of Eternity", "TheEyeOfEternity", 80 }, { "Ulduar", "Ulduar", 80 },
+    { "Trial of the Crusader", "TrialOfTheCrusader", 80 }, { "Icecrown Citadel", "IcecrownCitadel", 80 }, { "Ruby Sanctum", "RubySanctum", 80 },
+}
 
-local function find(list, name)
-    for index, value in ipairs(list or {}) do if value == name then return index end end
+local function makeButton(parent, text, width, height)
+    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    button:SetSize(width, height); button:SetText(text)
+    return button
 end
 
 local function teleport(name)
-    if not name or name == "" then return end
-    local recent = saved().recent
-    local index = find(recent, name)
-    if index then table.remove(recent, index) end
-    table.insert(recent, 1, name)
-    while #recent > 15 do table.remove(recent) end
-    SendChatMessage(".tele " .. name, "SAY")
+    if name and name ~= "" then SendChatMessage(".tele " .. name, "SAY") end
 end
 
-local function makeButton(parent, label, width, height)
-    local result = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    result:SetSize(width, height)
-    result:SetText(label)
-    return result
+local function capitalFor(key)
+    local values = {}
+    for _, capital in ipairs(CAPITALS) do if capital[3] == key then table.insert(values, capital) end end
+    return values
 end
 
 function T:Message(text) if self.status then self.status:SetText(text or "") end end
 
-function T:SetMapArt(continent)
-    for index, texture in ipairs(self.mapTiles or {}) do
-        if continent and continent.art then
-            texture:SetTexture("Interface\\WorldMap\\" .. continent.art .. "\\" .. continent.art .. index)
-            texture:Show()
-        else
-            texture:Hide()
-        end
-    end
-    if self.mapHint then
-        if continent and continent.art then self.mapHint:Hide() else self.mapHint:Show() end
-    end
+function T:SetBreadcrumb(text)
+    self.breadcrumb:SetText("World" .. (text and text ~= "" and ("  >  " .. text) or ""))
 end
 
 function T:ClearPins()
@@ -125,185 +96,225 @@ function T:ClearPins()
     self.pins = {}
 end
 
-function T:AddPin(item, continent, withLabel)
-    if not item.x or not item.y or not continent or not continent.bounds or item.mapId ~= continent.mapId then return end
+function T:MapPoint(continent, x, y)
+    if not continent or not continent.bounds or not x or not y then return end
     local minX, maxX, minY, maxY = unpack(continent.bounds)
-    local px = (item.y - minY) / (maxY - minY)
-    local py = (maxX - item.x) / (maxX - minX)
-    if px < 0 or px > 1 or py < 0 or py > 1 then return end
-    local pin = CreateFrame("Button", nil, self.canvas)
-    pin:SetSize(withLabel and 90 or 14, 18)
-    pin:SetPoint("CENTER", self.canvas, "BOTTOMLEFT", 8 + px * 484, 8 + py * 394)
-    local dot = pin:CreateTexture(nil, "OVERLAY")
-    dot:SetSize(13, 13); dot:SetPoint("LEFT"); dot:SetTexture("Interface\\Minimap\\POIIcons"); dot:SetTexCoord(0, .125, 0, .125)
-    if withLabel then
+    return (y - minY) / (maxY - minY), (maxX - x) / (maxX - minX)
+end
+
+function T:AddPin(item, labeled)
+    local continent = CONTINENTS[self.continentKey]
+    if not continent or item.mapId ~= continent.mapId then return end
+    local px, py = self:MapPoint(continent, item.x, item.y)
+    if not px or px < 0 or px > 1 or py < 0 or py > 1 then return end
+    local pin = CreateFrame("Button", nil, self.mapContent)
+    pin:SetSize(labeled and 100 or 14, 18)
+    pin:SetPoint("CENTER", self.mapContent, "TOPLEFT", px * self.mapWidth, -py * self.mapHeight)
+    local dot = pin:CreateTexture(nil, "OVERLAY"); dot:SetSize(13, 13); dot:SetPoint("LEFT")
+    dot:SetTexture("Interface\\Minimap\\POIIcons"); dot:SetTexCoord(0, .125, 0, .125)
+    if labeled then
         local label = pin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         label:SetPoint("LEFT", dot, "RIGHT", 2, 0); label:SetText(item.label or item.name); label:SetJustifyH("LEFT")
     end
     pin:SetScript("OnClick", function() teleport(item.tele or item.name) end)
     pin:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(item.label or item.name)
-        GameTooltip:AddLine("Click to teleport", .4, 1, .4); GameTooltip:Show()
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(item.label or item.name); GameTooltip:AddLine("Click to teleport", .4, 1, .4); GameTooltip:Show()
     end)
     pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
     table.insert(self.pins, pin)
 end
 
-function T:DrawPins()
+function T:AcquireMapTextures(continent)
+    local textures = {}
+    if continent and continent.uiIndex and SetMapZoom then
+        local oldContinent = GetCurrentMapContinent and GetCurrentMapContinent()
+        local oldZone = GetCurrentMapZone and GetCurrentMapZone()
+        SetMapZoom(continent.uiIndex)
+        if WorldMapFrame_Update then WorldMapFrame_Update() end
+        for index = 1, 12 do
+            local source = _G["WorldMapDetailTile" .. index]
+            textures[index] = source and source:GetTexture()
+        end
+        if oldContinent and oldContinent > 0 then SetMapZoom(oldContinent, oldZone or 0) elseif SetMapToCurrentZone then SetMapToCurrentZone() end
+    end
+    return textures
+end
+
+function T:RenderMap()
+    local continent = CONTINENTS[self.continentKey]
     self:ClearPins()
-    local continent = CONTINENTS[self.sectionIndex or 1]
-    if not continent or not continent.mapId then return end
-    local seen = {}
-    for _, entry in ipairs(NAVIGATION[continent.key] or {}) do
-        if not entry.section and entry[4] and entry[6] <= (self.zoom or 1) then
-            local item = { label = entry[1], tele = entry[2], mapId = entry[3], x = entry[4], y = entry[5] }
-            self:AddPin(item, continent, true); seen[entry[1]] = true
-        end
+    if not continent then
+        for _, tile in ipairs(self.mapTiles) do tile:Hide() end
+        self.mapHint:SetText("Choose a continent"); self.mapHint:Show(); return
     end
-    if (self.zoom or 1) >= 3 then
-        for _, item in ipairs(self.serverItems or {}) do
-            if not seen[item.name] then self:AddPin(item, continent, false) end
-        end
+    self.mapHint:Hide()
+    local oldWidth, oldHeight = self.mapWidth or VIEW_W, self.mapHeight or VIEW_H
+    local oldX, oldY = self.mapScroll:GetHorizontalScroll(), self.mapScroll:GetVerticalScroll()
+    local centerX, centerY = (oldX + VIEW_W / 2) / oldWidth, (oldY + VIEW_H / 2) / oldHeight
+    self.mapWidth, self.mapHeight = VIEW_W * self.zoom, VIEW_H * self.zoom
+    self.mapContent:SetSize(self.mapWidth, self.mapHeight)
+    local textures = self:AcquireMapTextures(continent)
+    for index, tile in ipairs(self.mapTiles) do
+        local column, row = (index - 1) % 4, math.floor((index - 1) / 4)
+        tile:ClearAllPoints(); tile:SetSize(self.mapWidth / 4 + 1, self.mapHeight / 3 + 1)
+        tile:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", column * self.mapWidth / 4, -row * self.mapHeight / 3)
+        tile:SetTexture(textures[index] or ("Interface\\WorldMap\\" .. continent.art .. "\\" .. continent.art .. index)); tile:Show()
     end
+    self.mapScroll:SetHorizontalScroll(math.max(0, math.min(self.mapWidth - VIEW_W, centerX * self.mapWidth - VIEW_W / 2)))
+    self.mapScroll:SetVerticalScroll(math.max(0, math.min(self.mapHeight - VIEW_H, centerY * self.mapHeight - VIEW_H / 2)))
+    for _, capital in ipairs(capitalFor(self.continentKey)) do
+        self:AddPin({ label = capital[1], tele = capital[2], mapId = continent.mapId, x = capital[4], y = capital[5] }, true)
+    end
+    if self.zoom >= 3 then for _, item in ipairs(self.serverItems or {}) do self:AddPin(item, false) end end
+    self.zoomText:SetText("Zoom " .. self.zoom .. "/3")
+end
+
+function T:SetZoom(value)
+    self.zoom = math.max(1, math.min(3, tonumber(value) or 1))
+    self:RenderMap()
 end
 
 function T:Display(entries, total, offset)
-    self.displayItems = entries or {}
-    self.total = total or #self.displayItems
-    self.offset = offset or 0
-    for index, row in ipairs(self.rows or {}) do
-        local item = self.displayItems[index]
-        row.item = item
+    self.displayItems, self.total, self.offset = entries or {}, total or #(entries or {}), offset or 0
+    for index, row in ipairs(self.rows) do
+        local item = self.displayItems[index]; row.item = item
         if item then
-            row.name:SetText(item.header and ("|cffffd100" .. item.label .. "|r") or item.label)
+            local prefix = item.indent and string.rep("   ", item.indent) or ""
+            row.name:SetText(prefix .. (item.header and "|cffffd100" or "") .. (item.arrow or "") .. item.label .. (item.header and "|r" or ""))
             row.detail:SetText(item.detail or "")
             if item.header then row:Disable() else row:Enable() end
             row:Show()
         else row:Hide() end
     end
     self.pageText:SetText(self.total > VISIBLE_ROWS and ((math.floor(self.offset / PAGE_SIZE) + 1) .. " / " .. math.max(1, math.ceil(self.total / PAGE_SIZE))) or "")
-    self:DrawPins()
 end
 
-function T:ShowNavigation()
-    local continent = CONTINENTS[self.sectionIndex or 1]
-    self:SetMapArt(continent)
-    if continent.key == "dungeons" then return self:ShowDungeons() end
-    local source = NAVIGATION[continent.key] or NAVIGATION.world
-    local entries = {}
-    local pendingHeader
-    for _, value in ipairs(source) do
-        if value.section then
-            pendingHeader = value.section
-        elseif value[6] <= (self.zoom or 1) then
-            if pendingHeader then
-                table.insert(entries, { label = pendingHeader, header = true })
-                pendingHeader = nil
-            end
-            table.insert(entries, { label = value[1], tele = value[2], search = value[2] and nil or value[1], detail = value[6] == 1 and "Capital" or "Area" })
-        end
-    end
-    self.mode = "navigation"
-    self:Message(continent.label .. " - select a capital or area")
-    self:Display(entries)
+function T:ShowContinent(key)
+    self.category, self.continentKey, self.zoom = "world", key, 1
+    local continent = CONTINENTS[key]; self:SetBreadcrumb(continent.label)
+    local entries = { { label = continent.label:upper(), header = true }, { label = "CAPITALS", header = true } }
+    for _, capital in ipairs(capitalFor(key)) do table.insert(entries, { label = capital[1], tele = capital[2], indent = 1, detail = "Capital" }) end
+    table.insert(entries, { label = "REGIONS", header = true })
+    for _, group in ipairs(REGIONS[key] or {}) do table.insert(entries, { label = group[1], group = group, arrow = "|cffffd100> |r", indent = 1, detail = "Region" }) end
+    self:Display(entries); self:Message("Choose a capital or drill down through a region"); self:RenderMap()
 end
 
-function T:ShowDungeons()
-    self:SetMapArt(nil)
-    local level = UnitLevel("player") or 1
-    local entries = { { label = "Available near level " .. level, header = true } }
-    for _, dungeon in ipairs(DUNGEONS) do
-        if level >= dungeon[3] - 2 and level <= dungeon[4] + 5 then
-            table.insert(entries, { label = dungeon[1], tele = dungeon[2], detail = dungeon[3] .. "-" .. dungeon[4] })
+function T:ShowRegion(group)
+    local continent = CONTINENTS[self.continentKey]
+    self.zoom = 2; self:SetBreadcrumb(continent.label .. "  >  " .. group[1])
+    local entries = { { label = "<  " .. continent.label, back = true }, { label = group[1]:upper(), header = true } }
+    for _, zone in ipairs(group[2]) do table.insert(entries, { label = zone, search = zone, indent = 1, detail = "Zone" }) end
+    self:Display(entries); self:Message("Choose a zone to show specific teleport destinations"); self:RenderMap()
+end
+
+function T:ShowWorld()
+    self.category, self.continentKey, self.zoom = "world", nil, 1; self:SetBreadcrumb(nil)
+    local entries = { { label = "CONTINENTS", header = true } }
+    for _, key in ipairs({ "ek", "kalimdor", "outland", "northrend" }) do table.insert(entries, { label = CONTINENTS[key].label, continent = key, arrow = ">  ", detail = "Open" }) end
+    table.insert(entries, { label = "MAIN CAPITALS", header = true })
+    for _, capital in ipairs(CAPITALS) do table.insert(entries, { label = capital[1], tele = capital[2], indent = 1 }) end
+    self:Display(entries); self:Message("Choose a continent or category"); self:RenderMap()
+end
+
+function T:ShowInstances(kind, minimum, maximum)
+    self.category, self.continentKey = kind, nil; self:SetBreadcrumb(kind == "dungeons" and "Dungeons" or "Raids")
+    local level = UnitLevel("player") or 1; local entries = {}
+    if kind == "dungeons" then
+        if minimum then
+            table.insert(entries, { label = "<  All level ranges", rangeHome = true })
+            table.insert(entries, { label = minimum .. " - " .. maximum, header = true })
+            for _, item in ipairs(DUNGEONS) do if item[3] <= maximum and item[4] >= minimum then table.insert(entries, { label = item[1], tele = item[2], indent = 1, detail = item[3] .. "-" .. item[4] }) end end
+        else
+            table.insert(entries, { label = "DUNGEONS BY LEVEL", header = true })
+            local ranges = { { 15, 25 }, { 25, 35 }, { 35, 45 }, { 45, 60 }, { 60, 70 }, { 70, 80 } }
+            for _, range in ipairs(ranges) do table.insert(entries, { label = range[1] .. " - " .. range[2], range = range, arrow = ">  ", detail = level >= range[1] and "" or "Above level" }) end
         end
+        self:Message("Dungeon list by level; progression filtering still requires bridge data")
+    else
+        table.insert(entries, { label = "RAIDS", header = true })
+        for _, item in ipairs(RAIDS) do if level >= item[3] - 10 then table.insert(entries, { label = item[1], tele = item[2], detail = "Level " .. item[3] }) end end
+        self:Message("Raids near your current level")
     end
-    self.mode = "dungeons"
-    self:Message("Level-filtered dungeons; progression filtering requires bridge data")
-    self:Display(entries)
+    self:Display(entries); self:RenderMap()
 end
 
 function T:Request(search, offset)
-    local continent = CONTINENTS[self.sectionIndex or 1]
-    if not MultiBot.Comm or not MultiBot.Comm.RequestTeleports then self:Message("Teleport bridge unavailable"); return end
-    self.mode = "server"
-    self.pendingSearch = search or self.search:GetText() or ""
-    self.offset = math.max(0, tonumber(offset) or 0)
-    self:Message("Loading " .. (self.pendingSearch ~= "" and self.pendingSearch or "destinations") .. "...")
-    MultiBot.Comm.RequestTeleports(self.pendingSearch, continent and continent.mapId, self.offset)
-end
-
-function T:SetZoom(value)
-    self.zoom = math.max(1, math.min(3, value or 1))
-    self.zoomText:SetText("Zoom " .. self.zoom .. "/3")
-    if self.zoom == 1 then self:ShowNavigation() elseif self.zoom == 2 and self.mode ~= "server" then self:ShowNavigation() else self:DrawPins() end
+    local continent = CONTINENTS[self.continentKey]
+    if not continent or not MultiBot.Comm or not MultiBot.Comm.RequestTeleports then self:Message("Teleport bridge unavailable"); return end
+    self.pendingSearch, self.offset = search or "", math.max(0, tonumber(offset) or 0)
+    self.search:SetText(self.pendingSearch); self.zoom = 3; self:RenderMap(); self:Message("Loading " .. self.pendingSearch .. "...")
+    MultiBot.Comm.RequestTeleports(self.pendingSearch, continent.mapId, self.offset)
 end
 
 function T:Build()
     if self.frame then return self.frame end
     local frame = CreateFrame("Frame", "MultiBotTeleportBrowser", UIParent)
-    frame:SetSize(920, 610); frame:SetPoint("CENTER"); frame:SetFrameStrata("DIALOG"); frame:SetMovable(true); frame:EnableMouse(true); frame:RegisterForDrag("LeftButton")
+    frame:SetSize(1000, 660); frame:SetPoint("CENTER"); frame:SetFrameStrata("DIALOG"); frame:SetMovable(true); frame:EnableMouse(true); frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self) self:StartMoving() end); frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     frame:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 32, insets = { left = 8, right = 8, top = 8, bottom = 8 } })
     frame:Hide(); self.frame = frame
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOP", 0, -16); title:SetText("AzerothCore Teleport Browser")
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -5, -5)
-    self.search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate"); self.search:SetSize(260, 24); self.search:SetPoint("TOPLEFT", 24, -48); self.search:SetAutoFocus(false)
+    self.search = CreateFrame("EditBox", nil, frame, "InputBoxTemplate"); self.search:SetSize(245, 25); self.search:SetPoint("TOPLEFT", 25, -47); self.search:SetAutoFocus(false)
     self.search:SetScript("OnEnterPressed", function(self) self:ClearFocus(); T:Request(self:GetText(), 0) end)
-    local searchButton = makeButton(frame, "Search", 70, 24); searchButton:SetPoint("LEFT", self.search, "RIGHT", 8, 0); searchButton:SetScript("OnClick", function() T:Request(T.search:GetText(), 0) end)
-    local home = makeButton(frame, "Home", 60, 24); home:SetPoint("LEFT", searchButton, "RIGHT", 8, 0); home:SetScript("OnClick", function() T:ShowNavigation() end)
-
-    local previous
-    for index, continent in ipairs(CONTINENTS) do
-        local tab = makeButton(frame, continent.label, index == 1 and 55 or (index == 6 and 85 or 130), 23)
-        if previous then tab:SetPoint("LEFT", previous, "RIGHT", 3, 0) else tab:SetPoint("TOPLEFT", 24, -80) end
-        tab:SetScript("OnClick", function() T.sectionIndex = index; T.zoom = 1; T:SetZoom(1); T:ShowNavigation() end)
-        previous = tab
-    end
+    local searchButton = makeButton(frame, "Search", 65, 25); searchButton:SetPoint("LEFT", self.search, "RIGHT", 7, 0); searchButton:SetScript("OnClick", function() T:Request(T.search:GetText(), 0) end)
+    local back = makeButton(frame, "Back", 65, 25); back:SetPoint("LEFT", searchButton, "RIGHT", 10, 0); back:SetScript("OnClick", function() if T.continentKey then T:ShowContinent(T.continentKey) else T:ShowWorld() end end)
+    local home = makeButton(frame, "Home", 65, 25); home:SetPoint("LEFT", back, "RIGHT", 7, 0); home:SetScript("OnClick", function() T:ShowWorld() end)
+    self.breadcrumb = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.breadcrumb:SetPoint("TOPLEFT", 25, -82)
+    local world = makeButton(frame, "WORLD", 95, 26); world:SetPoint("TOPLEFT", 25, -105); world:SetScript("OnClick", function() T:ShowWorld() end)
+    local dungeons = makeButton(frame, "DUNGEONS", 105, 26); dungeons:SetPoint("LEFT", world, "RIGHT", 6, 0); dungeons:SetScript("OnClick", function() T:ShowInstances("dungeons") end)
+    local raids = makeButton(frame, "RAIDS", 90, 26); raids:SetPoint("LEFT", dungeons, "RIGHT", 6, 0); raids:SetScript("OnClick", function() T:ShowInstances("raids") end)
 
     self.rows = {}
     for index = 1, VISIBLE_ROWS do
-        local row = CreateFrame("Button", nil, frame); row:SetSize(340, 23); row:SetPoint("TOPLEFT", 24, -116 - ((index - 1) * 23)); row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-        row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); row.name:SetPoint("LEFT", 6, 0); row.name:SetWidth(245); row.name:SetJustifyH("LEFT")
+        local row = CreateFrame("Button", nil, frame); row:SetSize(330, 22); row:SetPoint("TOPLEFT", 25, -141 - (index - 1) * 22); row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+        row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); row.name:SetPoint("LEFT", 5, 0); row.name:SetWidth(245); row.name:SetJustifyH("LEFT")
         row.detail = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"); row.detail:SetPoint("RIGHT", -4, 0)
         row:SetScript("OnClick", function(self)
-            if not self.item then return end
-            if self.item.tele then teleport(self.item.tele) elseif self.item.search then T.search:SetText(self.item.search); T:SetZoom(3); T:Request(self.item.search, 0) end
+            local item = self.item; if not item then return end
+            if item.tele then teleport(item.tele) elseif item.continent then T:ShowContinent(item.continent) elseif item.group then T:ShowRegion(item.group)
+            elseif item.search then T:Request(item.search, 0) elseif item.range then T:ShowInstances("dungeons", item.range[1], item.range[2]) elseif item.rangeHome then T:ShowInstances("dungeons") elseif item.back then T:ShowContinent(T.continentKey) end
         end)
         self.rows[index] = row
     end
 
-    self.canvas = CreateFrame("Frame", nil, frame); self.canvas:SetSize(500, 410); self.canvas:SetPoint("TOPRIGHT", -24, -116)
-    self.canvas:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } }); self.canvas:SetBackdropColor(.02, .03, .05, 1)
+    self.mapScroll = CreateFrame("ScrollFrame", nil, frame); self.mapScroll:SetSize(VIEW_W, VIEW_H); self.mapScroll:SetPoint("TOPRIGHT", -25, -105); self.mapScroll:EnableMouse(true); self.mapScroll:EnableMouseWheel(true)
+    self.mapScroll:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } }); self.mapScroll:SetBackdropColor(.02, .03, .05, 1)
+    self.mapContent = CreateFrame("Frame", nil, self.mapScroll); self.mapContent:SetSize(VIEW_W, VIEW_H); self.mapScroll:SetScrollChild(self.mapContent)
     self.mapTiles = {}
-    for index = 1, 12 do
-        local texture = self.canvas:CreateTexture(nil, "BACKGROUND")
-        texture:SetSize(125, 137); texture:SetPoint("TOPLEFT", ((index - 1) % 4) * 125, -math.floor((index - 1) / 4) * 137)
-        self.mapTiles[index] = texture
-    end
-    self.mapHint = self.canvas:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge"); self.mapHint:SetPoint("CENTER"); self.mapHint:SetText("Choose a continent")
-    self.pins = {}
-    local zoomOut = makeButton(frame, "-", 28, 24); zoomOut:SetPoint("TOPLEFT", self.canvas, "BOTTOMLEFT", 0, -6); zoomOut:SetScript("OnClick", function() T:SetZoom((T.zoom or 1) - 1) end)
-    local zoomIn = makeButton(frame, "+", 28, 24); zoomIn:SetPoint("LEFT", zoomOut, "RIGHT", 4, 0); zoomIn:SetScript("OnClick", function() T:SetZoom((T.zoom or 1) + 1) end)
-    self.zoomText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.zoomText:SetPoint("LEFT", zoomIn, "RIGHT", 8, 0)
-    local prev = makeButton(frame, "Previous", 80, 24); prev:SetPoint("BOTTOMLEFT", 24, 25); prev:SetScript("OnClick", function() if T.mode == "server" and T.offset > 0 then T:Request(T.pendingSearch, math.max(0, T.offset - PAGE_SIZE)) end end)
-    local nextButton = makeButton(frame, "Next", 80, 24); nextButton:SetPoint("LEFT", prev, "RIGHT", 8, 0); nextButton:SetScript("OnClick", function() if T.mode == "server" and T.offset + PAGE_SIZE < T.total then T:Request(T.pendingSearch, T.offset + PAGE_SIZE) end end)
-    self.pageText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.pageText:SetPoint("LEFT", nextButton, "RIGHT", 12, 0)
-    self.status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); self.status:SetPoint("BOTTOMRIGHT", -24, 31); self.status:SetWidth(500); self.status:SetJustifyH("RIGHT")
-    self.sectionIndex, self.zoom = 1, 1; self.zoomText:SetText("Zoom 1/3")
+    for index = 1, 12 do local tile = self.mapContent:CreateTexture(nil, "BACKGROUND"); self.mapTiles[index] = tile end
+    self.mapHint = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapHint:SetPoint("CENTER"); self.mapHint:SetText("Choose a continent")
+    self.pins = {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
+    self.mapScroll:SetScript("OnMouseWheel", function(_, delta) T:SetZoom(T.zoom + (delta > 0 and 1 or -1)) end)
+    self.mapScroll:SetScript("OnMouseDown", function(self)
+        local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); T.dragX, T.dragY = x / scale, y / scale; T.dragH, T.dragV = self:GetHorizontalScroll(), self:GetVerticalScroll(); T.dragging = true
+    end)
+    self.mapScroll:SetScript("OnMouseUp", function() T.dragging = nil end)
+    self.mapScroll:SetScript("OnUpdate", function(self)
+        if not T.dragging then return end
+        local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); x, y = x / scale, y / scale
+        self:SetHorizontalScroll(math.max(0, math.min(T.mapWidth - VIEW_W, T.dragH - (x - T.dragX))))
+        self:SetVerticalScroll(math.max(0, math.min(T.mapHeight - VIEW_H, T.dragV + (y - T.dragY))))
+    end)
+    local zoomOut = makeButton(frame, "-", 28, 24); zoomOut:SetPoint("TOPRIGHT", self.mapScroll, "TOPRIGHT", -9, -10); zoomOut:SetScript("OnClick", function() T:SetZoom(T.zoom - 1) end)
+    local zoomIn = makeButton(frame, "+", 28, 24); zoomIn:SetPoint("TOPRIGHT", zoomOut, "BOTTOMRIGHT", 0, -4); zoomIn:SetScript("OnClick", function() T:SetZoom(T.zoom + 1) end)
+    self.zoomText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); self.zoomText:SetPoint("TOPRIGHT", zoomIn, "BOTTOMRIGHT", 0, -5); self.zoomText:SetText("Zoom 1/3")
+    local previous = makeButton(frame, "Previous", 75, 24); previous:SetPoint("BOTTOMLEFT", 25, 25); previous:SetScript("OnClick", function() if T.offset > 0 then T:Request(T.pendingSearch, math.max(0, T.offset - PAGE_SIZE)) end end)
+    local nextButton = makeButton(frame, "Next", 75, 24); nextButton:SetPoint("LEFT", previous, "RIGHT", 7, 0); nextButton:SetScript("OnClick", function() if T.offset + PAGE_SIZE < T.total then T:Request(T.pendingSearch, T.offset + PAGE_SIZE) end end)
+    self.pageText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.pageText:SetPoint("LEFT", nextButton, "RIGHT", 10, 0)
+    self.status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"); self.status:SetPoint("BOTTOMRIGHT", -25, 31); self.status:SetWidth(610); self.status:SetJustifyH("RIGHT")
     return frame
 end
 
 function T:Toggle()
     local frame = self:Build()
-    if frame:IsShown() then frame:Hide() else frame:Show(); self:ShowNavigation() end
+    if frame:IsShown() then frame:Hide() else frame:Show(); self:ShowWorld() end
 end
 
 function MultiBot.OnBridgeTeleports(result)
-    T.serverItems = result.items or {}
-    local entries = {}
-    for _, item in ipairs(T.serverItems) do table.insert(entries, { label = item.name, tele = item.name, detail = "Map " .. item.mapId }) end
-    T:Message((result.total or #entries) .. " matching destinations")
-    T:Display(entries, result.total, result.offset)
+    T.serverItems = result.items or {}; local entries = { { label = (T.pendingSearch or "DESTINATIONS"):upper(), header = true } }
+    for _, item in ipairs(T.serverItems) do table.insert(entries, { label = item.name, tele = item.name, detail = "Teleport" }) end
+    T:Display(entries, result.total, result.offset); T:Message((result.total or #entries) .. " matching destinations"); T:RenderMap()
 end
 
 function MultiBot.OnBridgeTeleportsError(reason)
