@@ -2430,6 +2430,15 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
     return true
   end
 
+  if opcode == "TELEPORT_ACCESS" then
+    state.connected = true
+    MultiBot.TeleportAccess = trim(payload) == "1"
+    if MultiBot.TeleportAccess and MultiBot.SetGM then
+      MultiBot.SetGM(true)
+    end
+    return true
+  end
+
   if opcode == "MAINTENANCE_POLICY" then
     local token, rest = splitOnce(payload, "~")
     local scope

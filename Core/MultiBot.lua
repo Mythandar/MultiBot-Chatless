@@ -1146,7 +1146,7 @@ end
 
 -- Account level detection (multi-locale, no hardcoding in handler) --
 -- Set your GM threshold here (>= value means GM). ONLY set it once.
-MultiBot.GM_THRESHOLD = 3
+MultiBot.GM_THRESHOLD = 2
 
 -- DEBUG (set to true temporarily if you want to see what gets parsed)
 MultiBot.DEBUG_GM = false
