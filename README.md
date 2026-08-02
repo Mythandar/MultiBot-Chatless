@@ -643,6 +643,8 @@ The frame uses the client master-loot candidate API and enriches candidates with
 
 # Repository Layout
 
+Engineering notes for the inventory Sell safeguards, verified fallback behavior, and recommended bridge implementation are available in [docs/inventory-selling-safety-and-bridge-roadmap.md](docs/inventory-selling-safety-and-bridge-roadmap.md).
+
 ```text
 MultiBot-Chatless/
 ├── Core/

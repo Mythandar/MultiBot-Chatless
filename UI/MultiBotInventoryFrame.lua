@@ -1498,6 +1498,12 @@ function MultiBot.InitializeInventoryFrame()
     end
 
     inventory.buttons.SellVendor.doLeft = function(pButton)
+        if not IsShiftKeyDown or not IsShiftKeyDown() then
+            if UIErrorsFrame then
+                UIErrorsFrame:AddMessage(MultiBot.L("info.inventorysellvendorshift", "Hold Shift while clicking Sell Vendor."), 1, 0.25, 0.25, 1)
+            end
+            return
+        end
         runInventoryInstantAction(pButton.getName(), "s vendor", {
             requiresTarget = true,
             clearActionState = true,
