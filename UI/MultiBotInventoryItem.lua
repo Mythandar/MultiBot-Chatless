@@ -166,7 +166,7 @@ local function getInventoryItemDisplayCount(item)
     return count
 end
 
-local function registerInventoryPendingConsume(botName, item, amount)
+local function registerInventoryPendingConsume(botName, item, amount, ttl)
     local key = getInventoryConsumeKey(item)
     local store = getInventoryPendingConsumeStore(botName, true)
     if not key or not store then
@@ -191,7 +191,7 @@ local function registerInventoryPendingConsume(botName, item, amount)
 
     pending.amount = (tonumber(pending.amount or 0) or 0) + amount
     pending.baseline = math.max(tonumber(pending.baseline or 0) or 0, baseline)
-    pending.expiresAt = getNow() + 60
+    pending.expiresAt = getNow() + (tonumber(ttl) or 60)
     return true
 end
 
@@ -526,10 +526,17 @@ local function handleInventoryItemClick(button)
             return
         end
 
+        -- Selling removes every matching stack selected by playerbots. Keep a
+        -- stale bridge snapshot from recreating the button while the sale and
+        -- fallback command are still settling.
+        registerInventoryPendingConsume(botName, item, getInventoryItemDisplayCount(item), 5)
+
         sendInventoryItemCommand(action, button, botName, {
             fallbackArgument = item and item.name or nil,
             hideButton = true,
-            refreshDelay = 0.3,
+            postActionRefresh = true,
+            refreshDelay = 0.35,
+            followupRefreshDelay = 1.50,
         })
         return
     end
