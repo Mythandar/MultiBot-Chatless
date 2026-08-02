@@ -367,19 +367,24 @@ local inventoryWhisperObserver = CreateFrame("Frame")
 inventoryWhisperObserver:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 inventoryWhisperObserver:SetScript("OnEvent", function(_, _, message, recipient)
     local normalizedRecipient = normalizeInventoryWhisperName(recipient)
-    for _, pending in pairs(pendingInventoryWhispers) do
+    for token, pending in pairs(pendingInventoryWhispers) do
         if pending.message == message
             and (normalizedRecipient == "" or normalizedRecipient == pending.recipient) then
             pending.confirmed = true
+            pendingInventoryWhispers[token] = nil
+            if pending.onSettled then
+                pending.onSettled()
+            end
         end
     end
 end)
 
-local function sendInventoryWhisperWithFallback(command, primaryArgument, fallbackArgument, botName)
+local function sendInventoryWhisperWithFallback(command, primaryArgument, fallbackArgument, botName, onSettled)
     local primaryMessage = command .. " " .. primaryArgument
     local fallbackMessage = command .. " " .. fallbackArgument
     if primaryMessage == fallbackMessage then
         SendChatMessage(primaryMessage, "WHISPER", nil, botName)
+        if onSettled then onSettled() end
         return
     end
 
@@ -389,6 +394,7 @@ local function sendInventoryWhisperWithFallback(command, primaryArgument, fallba
         message = primaryMessage,
         recipient = normalizeInventoryWhisperName(botName),
         confirmed = false,
+        onSettled = onSettled,
     }
     pendingInventoryWhispers[token] = pending
 
@@ -396,6 +402,7 @@ local function sendInventoryWhisperWithFallback(command, primaryArgument, fallba
     if not sent then
         pendingInventoryWhispers[token] = nil
         SendChatMessage(fallbackMessage, "WHISPER", nil, botName)
+        if onSettled then onSettled() end
         return
     end
 
@@ -403,6 +410,7 @@ local function sendInventoryWhisperWithFallback(command, primaryArgument, fallba
         pendingInventoryWhispers[token] = nil
         if not pending.confirmed then
             SendChatMessage(fallbackMessage, "WHISPER", nil, botName)
+            if pending.onSettled then pending.onSettled() end
         end
     end)
 end
@@ -419,9 +427,24 @@ local function sendInventoryItemCommand(command, button, botName, options)
         return false
     end
 
+    local function refreshAfterCommand()
+        if options.postActionRefresh then
+            requestInventoryPostActionRefresh(botName, options.refreshDelay, options.followupRefreshDelay)
+        elseif options.refreshDelay ~= nil then
+            requestInventoryRefresh(options.refreshDelay, botName)
+        elseif options.refresh then
+            requestInventoryRefresh(nil, botName)
+        end
+
+        if options.followupRefreshDelay ~= nil and not options.postActionRefresh then
+            requestInventoryRefresh(options.followupRefreshDelay, botName)
+        end
+    end
+
     local fallbackArgument = options.fallbackArgument
+    local deferredRefresh = fallbackArgument and fallbackArgument ~= ""
     if fallbackArgument and fallbackArgument ~= "" then
-        sendInventoryWhisperWithFallback(command, commandArgument, fallbackArgument, botName)
+        sendInventoryWhisperWithFallback(command, commandArgument, fallbackArgument, botName, refreshAfterCommand)
     else
         SendChatMessage(command .. " " .. commandArgument, "WHISPER", nil, botName)
     end
@@ -434,16 +457,8 @@ local function sendInventoryItemCommand(command, button, botName, options)
         optimisticallyConsumeInventoryButton(button)
     end
 
-    if options.postActionRefresh then
-        requestInventoryPostActionRefresh(botName, options.refreshDelay, options.followupRefreshDelay)
-    elseif options.refreshDelay ~= nil then
-        requestInventoryRefresh(options.refreshDelay, botName)
-    elseif options.refresh then
-        requestInventoryRefresh(nil, botName)
-    end
-
-    if options.followupRefreshDelay ~= nil and not options.postActionRefresh then
-        requestInventoryRefresh(options.followupRefreshDelay, botName)
+    if not deferredRefresh then
+        refreshAfterCommand()
     end
 
     return true
