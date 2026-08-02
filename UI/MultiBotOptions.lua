@@ -1003,6 +1003,40 @@ function MultiBot.BuildOptionsPanel()
       end
     end
 
+    local function buildInventoryTab(tabGroup)
+      local scroll = addTabScroll(tabGroup)
+      local title = AceGUI:Create("Heading")
+      title:SetText(optLF("options.inventory.title", "Inventory safety"))
+      title:SetFullWidth(true)
+      scroll:AddChild(title)
+
+      local description = AceGUI:Create("Label")
+      description:SetText(optLF("options.inventory.max_sell_quality_desc", "Individual Sell actions above this rarity are blocked. Sell Vendor is not covered and requires Shift-click."))
+      description:SetFullWidth(true)
+      scroll:AddChild(description)
+
+      local qualities = {
+        [0] = ITEM_QUALITY0_DESC or "Poor",
+        [1] = ITEM_QUALITY1_DESC or "Common",
+        [2] = ITEM_QUALITY2_DESC or "Uncommon",
+        [3] = ITEM_QUALITY3_DESC or "Rare",
+        [4] = ITEM_QUALITY4_DESC or "Epic",
+        [5] = ITEM_QUALITY5_DESC or "Legendary",
+      }
+      local qualityOrder = { 0, 1, 2, 3, 4, 5 }
+      local dropdown = AceGUI:Create("Dropdown")
+      dropdown:SetLabel(optLF("options.inventory.max_sell_quality", "Maximum sell rarity"))
+      dropdown:SetList(qualities, qualityOrder)
+      dropdown:SetValue(MultiBot.GetMaxSellQuality and MultiBot.GetMaxSellQuality() or 3)
+      dropdown:SetWidth(280)
+      dropdown:SetCallback("OnValueChanged", function(_, _, value)
+        if MultiBot.SetMaxSellQuality then
+          MultiBot.SetMaxSellQuality(value)
+        end
+      end)
+      scroll:AddChild(dropdown)
+    end
+
     local function buildIntervalsTab(tabGroup)
       local scroll = addTabScroll(tabGroup)
 
@@ -1106,6 +1140,7 @@ function MultiBot.BuildOptionsPanel()
       { text = optL("options.tabs.layout"), value = "layout" },
       { text = optL("options.tabs.strata"), value = "strata" },
       { text = optLF("options.tabs.maintenance", "Maintenance"), value = "maintenance" },
+      { text = optLF("options.tabs.inventory", "Inventory"), value = "inventory" },
       { text = optL("options.tabs.intervals"), value = "intervals" },
     })
     tabGroup:SetCallback("OnGroupSelected", function(widget, _, group)
@@ -1121,6 +1156,8 @@ function MultiBot.BuildOptionsPanel()
         buildIntervalsTab(widget)
       elseif group == "maintenance" then
         buildMaintenanceTab(widget)
+      elseif group == "inventory" then
+        buildInventoryTab(widget)
       end
     end)
     root:AddChild(tabGroup)

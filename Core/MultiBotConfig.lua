@@ -29,6 +29,9 @@ local UI_DEFAULTS = {
     autoHideEnabled = false,
     autoHideDelay = 60,
   },
+  inventory = {
+    maxSellQuality = 3,
+  },
 }
 
 local DB_DEFAULTS = {
@@ -46,6 +49,9 @@ local DB_DEFAULTS = {
     ui = {
       mainBar = {
         moveLocked = UI_DEFAULTS.mainBar.moveLocked,
+      },
+      inventory = {
+        maxSellQuality = UI_DEFAULTS.inventory.maxSellQuality,
       },
     },
   },
@@ -86,6 +92,10 @@ local function migrateLegacyConfigIntoProfile(profile)
 
   local ui = ensureTableField(profile, "ui")
   local mainBar = ensureTableField(ui, "mainBar")
+  local inventory = ensureTableField(ui, "inventory")
+  if type(inventory.maxSellQuality) ~= "number" or inventory.maxSellQuality < 0 or inventory.maxSellQuality > 5 then
+    inventory.maxSellQuality = UI_DEFAULTS.inventory.maxSellQuality
+  end
   if MultiBot.Store and MultiBot.Store.NormalizeMainBarSettings then
     MultiBot.Store.NormalizeMainBarSettings(mainBar, UI_DEFAULTS.mainBar)
     return
@@ -379,4 +389,26 @@ function MultiBot.SetMainBarAutoHideDelay(value)
     MultiBot.RefreshMainBarAutoHideState()
   end
   return mainBar.autoHideDelay
+end
+
+function MultiBot.GetMaxSellQuality()
+  local config = getConfigStore(false)
+  local value = config and config.ui and config.ui.inventory and config.ui.inventory.maxSellQuality
+  if type(value) ~= "number" or value < 0 or value > 5 then
+    return UI_DEFAULTS.inventory.maxSellQuality
+  end
+  return math.floor(value)
+end
+
+function MultiBot.SetMaxSellQuality(value)
+  value = tonumber(value)
+  if not value then
+    return MultiBot.GetMaxSellQuality()
+  end
+  value = math.max(0, math.min(5, math.floor(value)))
+  local config = getConfigStore(true)
+  local ui = ensureTableField(config, "ui")
+  local inventory = ensureTableField(ui, "inventory")
+  inventory.maxSellQuality = value
+  return value
 end

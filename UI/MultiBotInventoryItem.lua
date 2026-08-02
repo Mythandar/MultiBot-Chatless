@@ -361,7 +361,12 @@ local function sendInventoryItemCommand(command, button, botName, options)
         return false
     end
 
-    SendChatMessage(command .. " " .. button.tip, "WHISPER", nil, botName)
+    local commandArgument = options.commandArgument or button.tip
+    if not commandArgument or commandArgument == "" then
+        return false
+    end
+
+    SendChatMessage(command .. " " .. commandArgument, "WHISPER", nil, botName)
 
     if options.hideButton and button.Hide then
         button:Hide()
@@ -439,7 +444,20 @@ local function handleInventoryItemClick(button)
             return
         end
 
+        local maxSellQuality = MultiBot.GetMaxSellQuality and MultiBot.GetMaxSellQuality() or 3
+        local itemQuality = tonumber(item and item.rare)
+        if itemQuality == nil or itemQuality > maxSellQuality then
+            local qualityNames = { "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary" }
+            local limitName = qualityNames[maxSellQuality + 1] or tostring(maxSellQuality)
+            sendInventoryFeedback("inventorysellrarityalert", "Sale blocked: maximum allowed rarity is " .. limitName .. ".")
+            return
+        end
+
         sendInventoryItemCommand(action, button, botName, {
+            -- Some 3.3.5 clients silently reject addon-generated whispers that
+            -- contain rare-quality item hyperlinks.  Playerbots also accepts an
+            -- item name here, which is the same reliable form as `s Item Name`.
+            commandArgument = item and item.name or nil,
             hideButton = true,
             refreshDelay = 0.3,
         })
