@@ -50,14 +50,6 @@ local function resolveInventoryItemLink(parts, itemLink)
     return buildInventoryItemLink(parts)
 end
 
-local function resolveInventoryCommandLink(parts)
-    if not parts or not parts[2] or not parts[3] or not parts[4] then
-        return nil
-    end
-
-    return buildInventoryItemLink(parts)
-end
-
 local function resolveInventoryItemRarity(itemRare)
     if itemRare ~= nil then
         return itemRare
@@ -97,7 +89,6 @@ local function buildInventoryItemRecord(itemInfo)
         icon = itemIcon,
         name = resolveInventoryItemName(parts, itemName),
         link = resolveInventoryItemLink(parts, itemLink),
-        commandLink = resolveInventoryCommandLink(parts),
         rare = resolveInventoryItemRarity(itemRare),
         classID = itemClassID,
         type = itemType,
@@ -370,10 +361,7 @@ local function sendInventoryItemCommand(command, button, botName, options)
         return false
     end
 
-    local commandArgument = options.commandArgument
-        or (button.item and button.item.commandLink)
-        or (button.item and button.item.name)
-        or button.tip
+    local commandArgument = options.commandArgument or button.tip
     if not commandArgument or commandArgument == "" then
         return false
     end
@@ -466,6 +454,10 @@ local function handleInventoryItemClick(button)
         end
 
         sendInventoryItemCommand(action, button, botName, {
+            -- Some 3.3.5 clients silently reject addon-generated whispers that
+            -- contain rare-quality item hyperlinks.  Playerbots also accepts an
+            -- item name here, which is the same reliable form as `s Item Name`.
+            commandArgument = item and item.name or nil,
             hideButton = true,
             refreshDelay = 0.3,
         })
