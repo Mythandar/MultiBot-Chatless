@@ -354,6 +354,59 @@ local function needsInventoryDestroyConfirmation(item)
         or ((item and item.rare or 0) > 3)
 end
 
+local inventoryWhisperSequence = 0
+local pendingInventoryWhispers = {}
+
+local function normalizeInventoryWhisperName(name)
+    name = tostring(name or "")
+    name = string.match(name, "^[^-]+") or name
+    return string.lower(name)
+end
+
+local inventoryWhisperObserver = CreateFrame("Frame")
+inventoryWhisperObserver:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
+inventoryWhisperObserver:SetScript("OnEvent", function(_, _, message, recipient)
+    local normalizedRecipient = normalizeInventoryWhisperName(recipient)
+    for _, pending in pairs(pendingInventoryWhispers) do
+        if pending.message == message
+            and (normalizedRecipient == "" or normalizedRecipient == pending.recipient) then
+            pending.confirmed = true
+        end
+    end
+end)
+
+local function sendInventoryWhisperWithFallback(command, primaryArgument, fallbackArgument, botName)
+    local primaryMessage = command .. " " .. primaryArgument
+    local fallbackMessage = command .. " " .. fallbackArgument
+    if primaryMessage == fallbackMessage then
+        SendChatMessage(primaryMessage, "WHISPER", nil, botName)
+        return
+    end
+
+    inventoryWhisperSequence = inventoryWhisperSequence + 1
+    local token = inventoryWhisperSequence
+    local pending = {
+        message = primaryMessage,
+        recipient = normalizeInventoryWhisperName(botName),
+        confirmed = false,
+    }
+    pendingInventoryWhispers[token] = pending
+
+    local sent = pcall(SendChatMessage, primaryMessage, "WHISPER", nil, botName)
+    if not sent then
+        pendingInventoryWhispers[token] = nil
+        SendChatMessage(fallbackMessage, "WHISPER", nil, botName)
+        return
+    end
+
+    MultiBot.TimerAfter(1.0, function()
+        pendingInventoryWhispers[token] = nil
+        if not pending.confirmed then
+            SendChatMessage(fallbackMessage, "WHISPER", nil, botName)
+        end
+    end)
+end
+
 local function sendInventoryItemCommand(command, button, botName, options)
     options = options or {}
 
@@ -366,7 +419,12 @@ local function sendInventoryItemCommand(command, button, botName, options)
         return false
     end
 
-    SendChatMessage(command .. " " .. commandArgument, "WHISPER", nil, botName)
+    local fallbackArgument = options.fallbackArgument
+    if fallbackArgument and fallbackArgument ~= "" then
+        sendInventoryWhisperWithFallback(command, commandArgument, fallbackArgument, botName)
+    else
+        SendChatMessage(command .. " " .. commandArgument, "WHISPER", nil, botName)
+    end
 
     if options.hideButton and button.Hide then
         button:Hide()
@@ -454,10 +512,7 @@ local function handleInventoryItemClick(button)
         end
 
         sendInventoryItemCommand(action, button, botName, {
-            -- Some 3.3.5 clients silently reject addon-generated whispers that
-            -- contain rare-quality item hyperlinks.  Playerbots also accepts an
-            -- item name here, which is the same reliable form as `s Item Name`.
-            commandArgument = item and item.name or nil,
+            fallbackArgument = item and item.name or nil,
             hideButton = true,
             refreshDelay = 0.3,
         })
