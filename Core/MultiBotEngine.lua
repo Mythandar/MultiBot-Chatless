@@ -2056,6 +2056,12 @@ MultiBot.addSelf = function(pClass, pName)
   btn.roster = "players"
   btn.class  = tClass
   btn.name   = pName
+  -- Keep Selfbot clickable regardless of whether the roster was populated by
+  -- the legacy chat parser or the Chatless bridge. The server response handler
+  -- remains responsible for updating the button's enabled visual state.
+  btn.doLeft = function()
+    SendChatMessage(".playerbot bot self", "SAY")
+  end
   if MultiBot.IsFavorite and MultiBot.IsFavorite(pName) and MultiBot.UpdateFavoritesIndex then
     MultiBot.UpdateFavoritesIndex()
   end
