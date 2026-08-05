@@ -14,6 +14,46 @@ local CONTINENTS = {
     northrend = { key = "northrend", label = "Northrend", mapId = 571, uiIndex = 4, art = "Northrend", bounds = { -1240.8900146484375, 10593.375, -9217.15234375, 8534.24609375 } },
 }
 
+-- Curated faction settlements are hidden from characters of the opposing
+-- faction. Neutral destinations and broad zone teleports remain available to
+-- both factions. Keep this keyed by the AzerothCore game_tele name so the same
+-- rule also applies when a known destination is returned by server search.
+local FACTION_TELEPORTS = {
+    -- Eastern Kingdoms
+    Stormwind = "Alliance", Ironforge = "Alliance", Goldshire = "Alliance", EastvaleLoggingCamp = "Alliance", WestbrookGarrison = "Alliance",
+    SentinelHill = "Alliance", Lakeshire = "Alliance", Darkshire = "Alliance", RavenHill = "Alliance", RebelCamp = "Alliance",
+    Kharanos = "Alliance", Anvilmar = "Alliance", Thelsamar = "Alliance", MenethilHarbor = "Alliance", RefugePointe = "Alliance",
+    AeriePeak = "Alliance", ChillwindCamp = "Alliance", Southshore = "Alliance", MorgansVigil = "Alliance", NethergardeKeep = "Alliance", TheHarborage = "Alliance",
+    Undercity = "Horde", SilvermoonCity = "Horde", SunstriderIsle = "Horde", FalconwingSquare = "Horde", FairbreezeVillage = "Horde",
+    FarstriderRetreat = "Horde", farstriderEnclave = "Horde", Tranquillien = "Horde", Deathknell = "Horde", Brill = "Horde",
+    TheBulwark = "Horde", TheSepulcher = "Horde", TarrenMill = "Horde", GromgolBaseCamp = "Horde", Hammerfall = "Horde",
+    RevantuskVillage = "Horde", Kargath = "Horde", FlameCrest = "Horde", Stonard = "Horde",
+
+    -- Kalimdor
+    Darnassus = "Alliance", TheExodar = "Alliance", Dolanaar = "Alliance", Auberdine = "Alliance", AzureWatch = "Alliance",
+    BloodWatch = "Alliance", TalonbranchGlade = "Alliance", Astranaar = "Alliance", ForestSong = "Alliance", SilverwindRefuge = "Alliance",
+    TalrendisPoint = "Alliance", StonetalonPeak = "Alliance", NijelsPoint = "Alliance", Theramore = "Alliance",
+    FeathermoonStronghold = "Alliance", Thalanaar = "Alliance",
+    Orgrimmar = "Horde", ThunderBluff = "Horde", ValleyOfTrials = "Horde", RazorHill = "Horde", SenjinVillage = "Horde",
+    TheCrossroads = "Horde", CampTaurajo = "Horde", BloodhoofVillage = "Horde", CampNarache = "Horde", SplintertreePost = "Horde",
+    ZoramgarOutpost = "Horde", Valormok = "Horde", BloodvenomPost = "Horde", SunRockRetreat = "Horde",
+    ShadowpreyVillage = "Horde", BrackenwallVillage = "Horde", CampMojache = "Horde", FreewindPost = "Horde",
+
+    -- Outland
+    HonorHold = "Alliance", TempleOfTelhamat = "Alliance", Telredor = "Alliance", OreborHarborage = "Alliance",
+    AllerianStronghold = "Alliance", Telaar = "Alliance", Sylvanaar = "Alliance", ToshleysStation = "Alliance", WildhammerStronghold = "Alliance",
+    Thrallmar = "Horde", FalconWatch = "Horde", Zabrajin = "Horde", SwampratPost = "Horde", StonebreakerHold = "Horde",
+    Garadar = "Horde", ThunderlordStronghold = "Horde", MokNathalVillage = "Horde", ShadowmoonVillage = "Horde",
+
+    -- Northrend
+    ValianceKeep = "Alliance", FizzcrankAirstrip = "Alliance", Valgarde = "Alliance", WestguardKeep = "Alliance", FortWildervar = "Alliance",
+    StarsRest = "Alliance", WintergardeKeep = "Alliance", AmberpineLodge = "Alliance", WestfallBrigadeEncampment = "Alliance",
+    Frosthold = "Alliance", TheSilverEnclave = "Alliance",
+    WarsongHold = "Horde", BorgorokOutpost = "Horde", VengeanceLanding = "Horde", NewAgamand = "Horde", CampWinterhoof = "Horde",
+    ApothecaryCamp = "Horde", AgmarsHammer = "Horde", Venomspite = "Horde", ConquestHold = "Horde", CampOneqwah = "Horde",
+    WindrunnersOverlook = "Alliance", CampTunkalo = "Horde", SunreaversCommand = "Horde", SunreaversSanctuary = "Horde",
+}
+
 local CAPITALS = {
     { "Stormwind", "Stormwind", "ek", -8833, 629 }, { "Ironforge", "Ironforge", "ek", -4919, -940 },
     { "Undercity", "Undercity", "ek", 1584, 240 }, { "Silvermoon City", "SilvermoonCity", "ek", 9488, -7279 },
@@ -113,6 +153,114 @@ local ZONE_VIEWS = {
     ["Crystalsong Forest"] = { continent = "northrend", overlay = "CrystalsongForest", bounds = { 4687.5, 6502.083, -1443.75, 1279.166 }, destinations = { { "Crystalsong Forest", "CrystalsongForest", 5258.39, 156.958 }, { "The Violet Stand", "VioletStand", 5744.35, 1017.14 } } },
 }
 
+-- Additional high-value quest hubs and flight points. The first two entries in
+-- each ZONE_VIEWS record remain the broad area and primary settlement; these
+-- entries fill out the useful leveling route without turning the map into a
+-- list of every minor camp in game_tele.
+local QUEST_HUBS = {
+    ["Eversong Woods"] = {
+        { "Sunstrider Isle", "SunstriderIsle", 10331.1, -6235.42, "Quest hub" },
+        { "Falconwing Square", "FalconwingSquare", 9514.33, -6822.1, "Quest hub" },
+        { "Farstrider Retreat", "FarstriderRetreat", 9041.51, -7456.05, "Quest hub" },
+    },
+    ["Ghostlands"] = { { "Farstrider Enclave", "farstriderEnclave", 7544.57, -7667.85, "Quest hub" } },
+    ["Tirisfal Glades"] = {
+        { "Deathknell", "Deathknell", 1843.5, 1590, "Quest hub" },
+        { "The Bulwark", "TheBulwark", 1711.99, -719.761, "Quest hub / flight master" },
+    },
+    ["Western Plaguelands"] = { { "The Bulwark", "TheBulwark", 1711.99, -719.761, "Quest hub / flight master" } },
+    ["Elwynn Forest"] = {
+        { "Eastvale Logging Camp", "EastvaleLoggingCamp", -9450.82, -1299.92, "Quest hub" },
+        { "Westbrook Garrison", "WestbrookGarrison", -9663.01, 686.769, "Quest hub" },
+    },
+    ["Duskwood"] = { { "Raven Hill", "RavenHill", -10742.2, 330.574, "Quest hub" } },
+    ["Stranglethorn Vale"] = {
+        { "Rebel Camp", "RebelCamp", -11322.4, -202.492, "Alliance quest hub / flight master" },
+        { "Grom'gol Base Camp", "GromgolBaseCamp", -12388.9, 172.578, "Horde quest hub / flight master" },
+        { "Nesingwary's Expedition", "NesingwarysExpedition", -11609.3, -52.9532, "Neutral quest hub" },
+    },
+    ["Dun Morogh"] = { { "Anvilmar", "Anvilmar", -6165.16, 383.46, "Quest hub" } },
+    ["Arathi Highlands"] = { { "Hammerfall", "Hammerfall", -941.007, -3526.66, "Horde quest hub / flight master" } },
+    ["Hinterlands"] = { { "Revantusk Village", "RevantuskVillage", -557.226, -4581.27, "Horde quest hub / flight master" } },
+    ["Burning Steppes"] = { { "Flame Crest", "FlameCrest", -7501.51, -2183.08, "Horde quest hub / flight master" } },
+    ["Swamp of Sorrows"] = { { "The Harborage", "TheHarborage", -10126, -2834.73, "Alliance quest hub" } },
+
+    ["Felwood"] = {
+        { "Talonbranch Glade", "TalonbranchGlade", 6209.51, -1927.01, "Alliance flight master" },
+        { "Bloodvenom Post", "BloodvenomPost", 5128.91, -343.506, "Horde quest hub / flight master" },
+    },
+    ["Ashenvale"] = {
+        { "Forest Song", "ForestSong", 3011.16, -3359.08, "Alliance quest hub / flight master" },
+        { "Silverwind Refuge", "SilverwindRefuge", 2137.3, -1189.05, "Alliance quest hub" },
+        { "Zoram'gar Outpost", "ZoramgarOutpost", 3376.86, 1013.05, "Horde quest hub / flight master" },
+    },
+    ["Azshara"] = { { "Talrendis Point", "TalrendisPoint", 2735.06, -3867.44, "Alliance quest hub / flight master" } },
+    ["Durotar"] = {
+        { "Valley of Trials", "ValleyOfTrials", -601.294, -4296.76, "Quest hub" },
+        { "Sen'jin Village", "SenjinVillage", -813.097, -4880.08, "Quest hub" },
+    },
+    ["The Barrens"] = { { "Camp Taurajo", "CampTaurajo", -2363.11, -1913.78, "Horde quest hub / flight master" } },
+    ["Mulgore"] = { { "Camp Narache", "CampNarache", -2919.35, -264.535, "Quest hub" } },
+    ["Stonetalon Mountains"] = { { "Stonetalon Peak", "StonetalonPeak", 2678.38, 1497.46, "Alliance quest hub / flight master" } },
+    ["Dustwallow Marsh"] = { { "Mudsprocket", "Mudsprocket", -4573.79, -3173.15, "Neutral quest hub / flight master" } },
+    ["Feralas"] = { { "Thalanaar", "Thalanaar", -4525.63, -791.364, "Alliance quest hub / flight master" } },
+    ["Thousand Needles"] = { { "Mirage Raceway", "TheShimmeringFlats", -5588.82, -3752.19, "Neutral quest hub" } },
+
+    ["Hellfire Peninsula"] = {
+        { "Temple of Telhamat", "TempleOfTelhamat", 78.9769, 4333.58, "Alliance quest hub / flight master" },
+        { "Falcon Watch", "FalconWatch", -600.782, 4100.1, "Horde quest hub / flight master" },
+    },
+    ["Zangarmarsh"] = {
+        { "Orebor Harborage", "OreborHarborage", 958.66, 7374.02, "Alliance quest hub / flight master" },
+        { "Swamprat Post", "SwampratPost", 104.534, 5199.31, "Horde quest hub / flight master" },
+    },
+    ["Blade's Edge Mountains"] = {
+        { "Toshley's Station", "ToshleysStation", 1910.63, 5556.25, "Alliance quest hub / flight master" },
+        { "Mok'Nathal Village", "MokNathalVillage", 2210.93, 4763.72, "Horde quest hub / flight master" },
+        { "Evergrove", "Evergrove", 2976.85, 5511.01, "Neutral quest hub / flight master" },
+    },
+    ["Netherstorm"] = { { "Cosmowrench", "Cosmowrench", 2988.21, 1806.9, "Neutral quest hub / flight master" } },
+    ["Shadowmoon Valley"] = {
+        { "Altar of Sha'tar", "AltarOfShatar", -3053.96, 828.896, "Neutral quest hub / flight master" },
+        { "Sanctum of the Stars", "SanctumOfTheStars", -4115.51, 1120.54, "Neutral quest hub / flight master" },
+    },
+
+    ["Borean Tundra"] = {
+        { "Fizzcrank Airstrip", "FizzcrankAirstrip", 4147.98, 5278.79, "Alliance quest hub / flight master" },
+        { "Bor'gorok Outpost", "BorgorokOutpost", 4488.76, 5736.18, "Horde quest hub / flight master" },
+        { "Amber Ledge", "AmberLedge", 3601.73, 5941.81, "Neutral quest hub / flight master" },
+        { "Unu'pe", "Unupe", 2925.02, 4065.63, "Neutral quest hub / flight master" },
+    },
+    ["Howling Fjord"] = {
+        { "Westguard Keep", "WestguardKeep", 1391.04, -3284.63, "Alliance quest hub / flight master" },
+        { "Fort Wildervar", "FortWildervar", 2469.09, -5086.4, "Alliance quest hub / flight master" },
+        { "New Agamand", "NewAgamand", 424.405, -4548.76, "Horde quest hub / flight master" },
+        { "Camp Winterhoof", "CampWinterhoof", 2649.82, -4362.69, "Horde quest hub / flight master" },
+        { "Apothecary Camp", "ApothecaryCamp", 2134.33, -2979.44, "Horde quest hub / flight master" },
+        { "Kamagua", "Kamagua", 774.043, -2940.65, "Neutral quest hub / flight master" },
+    },
+    ["Dragonblight"] = {
+        { "Wintergarde Keep", "WintergardeKeep", 3682.71, -722.635, "Alliance quest hub / flight master" },
+        { "Venomspite", "Venomspite", 3241.29, -699.767, "Horde quest hub / flight master" },
+    },
+    ["Grizzly Hills"] = {
+        { "Westfall Brigade Encampment", "WestfallBrigadeEncampment", 4529.59, -4233.93, "Alliance quest hub / flight master" },
+        { "Camp Oneqwah", "CampOneqwah", 3848.7, -4543.46, "Horde quest hub / flight master" },
+    },
+    ["Zul'Drak"] = {
+        { "Light's Breach", "LightsBreach", 5154.52, -2188.33, "Neutral quest hub / flight master" },
+        { "Zim'Torga", "ZimTorga", 5757.21, -3528.22, "Neutral quest hub / flight master" },
+    },
+    ["The Storm Peaks"] = {
+        { "Brunnhildar Village", "BrunnhildarVillage", 7056.37, -1698, "Neutral quest hub" },
+        { "Dun Niffelem", "DunNiffelem", 7165.42, -2729.01, "Neutral quest hub" },
+    },
+    ["Crystalsong Forest"] = {
+        { "Windrunner's Overlook", "WindrunnersOverlook", 5057.03, -560.349, "Alliance quest hub / flight master" },
+        { "Sunreaver's Command", "SunreaversCommand", 5595.35, -704.415, "Horde quest hub / flight master" },
+    },
+}
+
 local REGIONS = {
     ek = {
         { "Northern Kingdoms", { "Eversong Woods", "Ghostlands", "Isle of Quel'Danas", "Tirisfal Glades", "Silverpine Forest", "Western Plaguelands", "Eastern Plaguelands", "Hinterlands" } },
@@ -183,13 +331,32 @@ local function bumpFont(fontString)
     if font and size then fontString:SetFont(font, size + 2, flags) end
 end
 
+local function playerFaction()
+    local faction = UnitFactionGroup and UnitFactionGroup("player")
+    if faction == "Alliance" or faction == "Horde" then return faction end
+    return nil
+end
+
+local function destinationAllowed(name)
+    local requiredFaction = name and FACTION_TELEPORTS[name]
+    local faction = playerFaction()
+    return not requiredFaction or not faction or requiredFaction == faction
+end
+
 local function teleport(name)
-    if name and name ~= "" then SendChatMessage(".tele " .. name, "SAY") end
+    if not name or name == "" then return end
+    if not destinationAllowed(name) then
+        if UIErrorsFrame then UIErrorsFrame:AddMessage("That destination belongs to the opposing faction.", 1, .2, .2, 1) end
+        return
+    end
+    SendChatMessage(".tele " .. name, "SAY")
 end
 
 local function capitalFor(key)
     local values = {}
-    for _, capital in ipairs(CAPITALS) do if capital[3] == key then table.insert(values, capital) end end
+    for _, capital in ipairs(CAPITALS) do
+        if capital[3] == key and destinationAllowed(capital[2]) then table.insert(values, capital) end
+    end
     return values
 end
 
@@ -197,6 +364,23 @@ local function hubFor(key, label)
     for _, hub in ipairs(HUBS[key] or {}) do
         if hub[1] == label then return hub end
     end
+end
+
+local function destinationsFor(zoneName)
+    local zone = ZONE_VIEWS[zoneName]
+    local values, seen = {}, {}
+
+    local function append(destination)
+        local tele = destination and destination[2]
+        if tele and not seen[tele] and destinationAllowed(tele) then
+            seen[tele] = true
+            table.insert(values, destination)
+        end
+    end
+
+    for _, destination in ipairs(zone and zone.destinations or {}) do append(destination) end
+    for _, destination in ipairs(QUEST_HUBS[zoneName] or {}) do append(destination) end
+    return values
 end
 
 function T:Message(text) if self.status then self.status:SetText(text or "") end end
@@ -360,7 +544,7 @@ function T:RenderMap()
     self.mapScroll:SetHorizontalScroll(math.max(0, math.min(self.mapWidth - VIEW_W, centerX * self.mapWidth - VIEW_W / 2)))
     self.mapScroll:SetVerticalScroll(math.max(0, math.min(self.mapHeight - VIEW_H, centerY * self.mapHeight - VIEW_H / 2)))
     if zone then
-        for _, destination in ipairs(zone.destinations) do
+        for _, destination in ipairs(destinationsFor(self.selectedZone)) do
             self:AddPin({ label = destination[1], tele = destination[2], mapId = continent.mapId, x = destination[3], y = destination[4] }, true, zone.bounds, true)
         end
     else
@@ -374,7 +558,9 @@ function T:RenderMap()
         end
         if self.zoom >= 2 then
             for _, hub in ipairs(HUBS[self.continentKey] or {}) do
-                self:AddPin({ label = hub[1], tele = hub[2], mapId = continent.mapId, x = hub[3], y = hub[4] }, true)
+                if destinationAllowed(hub[2]) then
+                    self:AddPin({ label = hub[1], tele = hub[2], mapId = continent.mapId, x = hub[3], y = hub[4] }, true)
+                end
             end
         end
     end
@@ -420,7 +606,7 @@ function T:ShowRegion(group)
             table.insert(entries, { label = zone, zone = zone, indent = 1, detail = "Open map" })
         else
             local hub = hubFor(self.continentKey, zone)
-            if hub then table.insert(entries, { label = hub[1], tele = hub[2], indent = 1, detail = "Teleport" }) end
+            if hub and destinationAllowed(hub[2]) then table.insert(entries, { label = hub[1], tele = hub[2], indent = 1, detail = "Teleport" }) end
         end
     end
     self:Display(entries); self:Message("Choose a zone to show specific teleport destinations"); self:RenderMap()
@@ -433,7 +619,10 @@ function T:ShowZone(name)
     local continent = CONTINENTS[self.continentKey]
     self:SetBreadcrumb(continent.label .. "  >  " .. name)
     local entries = { { label = "<  " .. continent.label, back = true }, { label = name:upper(), header = true } }
-    for _, destination in ipairs(zone.destinations) do table.insert(entries, { label = destination[1], tele = destination[2], indent = 1, detail = destination == zone.destinations[1] and "Area" or "Town / hub" }) end
+    local destinations = destinationsFor(name)
+    for index, destination in ipairs(destinations) do
+        table.insert(entries, { label = destination[1], tele = destination[2], indent = 1, detail = destination[5] or (index == 1 and "Area" or "Town / hub") })
+    end
     self:Display(entries); self:Message("Select a red destination marker or use the list"); self:RenderMap()
 end
 
@@ -442,7 +631,9 @@ function T:ShowWorld()
     local entries = { { label = "CONTINENTS", header = true } }
     for _, key in ipairs({ "ek", "kalimdor", "outland", "northrend" }) do table.insert(entries, { label = CONTINENTS[key].label, continent = key, arrow = ">  ", detail = "Open" }) end
     table.insert(entries, { label = "MAIN CAPITALS", header = true })
-    for _, capital in ipairs(CAPITALS) do table.insert(entries, { label = capital[1], tele = capital[2], indent = 1 }) end
+    for _, capital in ipairs(CAPITALS) do
+        if destinationAllowed(capital[2]) then table.insert(entries, { label = capital[1], tele = capital[2], indent = 1 }) end
+    end
     self:Display(entries); self:Message("Choose a continent or category"); self:RenderMap()
 end
 
@@ -577,7 +768,9 @@ function MultiBot.OnBridgeTeleports(result)
         return
     end
     T.serverItems = result.items or {}; local entries = { { label = (T.pendingLabel or "DESTINATIONS"):upper(), header = true } }
-    for _, item in ipairs(T.serverItems) do table.insert(entries, { label = item.name, tele = item.name, detail = "Teleport" }) end
+    for _, item in ipairs(T.serverItems) do
+        if destinationAllowed(item.name) then table.insert(entries, { label = item.name, tele = item.name, detail = "Teleport" }) end
+    end
     T:Display(entries, result.total, result.offset); T:Message((result.total or #entries) .. " matching destinations"); T:RenderMap()
 end
 
