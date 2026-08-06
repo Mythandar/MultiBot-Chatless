@@ -407,10 +407,105 @@ end
 function T:SetHitboxDebug(enabled)
     self.hitboxDebug = enabled and true or false
     if self.hitboxButton then
-        self.hitboxButton:SetText(self.hitboxDebug and "Hitboxes: ON" or "Hitboxes: OFF")
+        self.hitboxButton:SetText(self.hitboxDebug and "Outlines: ON" or "Outlines: OFF")
     end
     self:RenderMap()
-    self:Message(self.hitboxDebug and "Zone hitboxes are visible; click them normally or take a screenshot for alignment." or "Zone hitboxes hidden")
+    self:Message(self.hitboxDebug and "Native map outlines are emphasized" or "Native map outlines use normal highlighting")
+end
+
+function T:ClearMapHighlight()
+    self.hoverElapsed, self.hoverName = 0, nil
+    if self.mapHighlight then self.mapHighlight:Hide() end
+    if self.mapAreaLabel then self.mapAreaLabel:SetText("") end
+end
+
+function T:CursorMapPoint()
+    if not self.mapContent or not self.mapScroll or not self.mapScroll:IsMouseOver() then return end
+    local scale = self.mapContent:GetEffectiveScale()
+    local cursorX, cursorY = GetCursorPosition()
+    cursorX, cursorY = cursorX / scale, cursorY / scale
+    local left, top = self.mapContent:GetLeft(), self.mapContent:GetTop()
+    if not left or not top then return end
+    local x = (cursorX - left) / self.mapWidth
+    local y = (top - cursorY) / self.mapHeight
+    if x < 0 or x > 1 or y < 0 or y > 1 then return end
+    return x, y
+end
+
+function T:SetNativeMapContext(continent)
+    if not continent or not SetMapZoom then return end
+    if continent.key == "world" then
+        SetMapZoom(WORLDMAP_WORLD_ID or 0)
+    else
+        SetMapZoom(continent.uiIndex, 0)
+    end
+end
+
+function T:RestoreMapContext(oldContinent, oldZone)
+    if oldContinent and oldContinent > 0 then
+        SetMapZoom(oldContinent, oldZone or 0)
+    elseif SetMapToCurrentZone then
+        SetMapToCurrentZone()
+    end
+end
+
+function T:UpdateNativeMapHighlight(elapsed, force)
+    self.hoverElapsed = (self.hoverElapsed or 0) + (elapsed or 0)
+    if not force and self.hoverElapsed < .08 then return end
+    self.hoverElapsed = 0
+
+    local continent = CONTINENTS[self.continentKey]
+    local x, y = self:CursorMapPoint()
+    if self.selectedZone or not continent or not x or not UpdateMapHighlight then
+        self:ClearMapHighlight()
+        return
+    end
+
+    local oldContinent = GetCurrentMapContinent and GetCurrentMapContinent()
+    local oldZone = GetCurrentMapZone and GetCurrentMapZone()
+    self:SetNativeMapContext(continent)
+    local name, fileName, texX, texY, width, height, offsetX, offsetY = UpdateMapHighlight(x, y)
+    self:RestoreMapContext(oldContinent, oldZone)
+
+    self.hoverName = name
+    if not fileName or not width or width <= 0 or not height or height <= 0 then
+        self.mapHighlight:Hide(); self.mapAreaLabel:SetText(name or "")
+        return
+    end
+
+    self.mapHighlight:ClearAllPoints()
+    self.mapHighlight:SetTexture("Interface\\WorldMap\\" .. fileName .. "\\" .. fileName .. "Highlight")
+    self.mapHighlight:SetTexCoord(0, texX, 0, texY)
+    self.mapHighlight:SetSize(width * self.mapWidth, height * self.mapHeight)
+    self.mapHighlight:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", offsetX * self.mapWidth, -offsetY * self.mapHeight)
+    self.mapHighlight:SetVertexColor(1, .78, .08); self.mapHighlight:SetBlendMode("ADD")
+    self.mapHighlight:SetAlpha(self.hitboxDebug and .85 or .55); self.mapHighlight:Show()
+    self.mapAreaLabel:SetText(name or "")
+end
+
+function T:HandleNativeMapClick()
+    if self.selectedZone or not ProcessMapClick then return end
+    local continent = CONTINENTS[self.continentKey]
+    local x, y = self:CursorMapPoint()
+    if not continent or not x then return end
+
+    local oldContinent = GetCurrentMapContinent and GetCurrentMapContinent()
+    local oldZone = GetCurrentMapZone and GetCurrentMapZone()
+    self:SetNativeMapContext(continent)
+    ProcessMapClick(x, y)
+    local clickedContinent = GetCurrentMapContinent and GetCurrentMapContinent()
+    local clickedZone = GetCurrentMapZone and GetCurrentMapZone()
+    local zoneNames = clickedContinent and clickedContinent > 0 and { GetMapZones(clickedContinent) } or {}
+    local zoneName = clickedZone and clickedZone > 0 and zoneNames[clickedZone]
+    self:RestoreMapContext(oldContinent, oldZone)
+
+    if continent.key == "world" then
+        for key, candidate in pairs(CONTINENTS) do
+            if candidate.uiIndex == clickedContinent and key ~= "world" then return self:ShowContinent(key) end
+        end
+    elseif clickedContinent == continent.uiIndex and zoneName and ZONE_VIEWS[zoneName] then
+        self:ShowZone(zoneName)
+    end
 end
 
 function T:DrawExploration(overlays)
@@ -547,12 +642,15 @@ end
 
 function T:RenderMap()
     local continent = CONTINENTS[self.continentKey]
-    self:ClearPins(); self:ClearZoneButtons(); self:ClearExploration()
+    self:ClearPins(); self:ClearZoneButtons(); self:ClearExploration(); self:ClearMapHighlight()
     if not continent then
         for _, tile in ipairs(self.mapTiles) do tile:Hide() end
         self.mapHint:SetText("Choose a continent"); self.mapHint:Show(); return
     end
     self.mapHint:Hide()
+    if self.outlandButton then
+        if continent.key == "world" then self.outlandButton:Show() else self.outlandButton:Hide() end
+    end
     local oldWidth, oldHeight = self.mapWidth or VIEW_W, self.mapHeight or VIEW_H
     local oldX, oldY = self.mapScroll:GetHorizontalScroll(), self.mapScroll:GetVerticalScroll()
     local centerX, centerY = (oldX + VIEW_W / 2) / oldWidth, (oldY + VIEW_H / 2) / oldHeight
@@ -579,9 +677,6 @@ function T:RenderMap()
             self:AddPin({ label = destination[1], tele = destination[2], mapId = continent.mapId, x = destination[3], y = destination[4] }, true, zone.bounds, true)
         end
     else
-        for name, view in pairs(ZONE_VIEWS) do
-            if view.continent == self.continentKey and view.overview ~= false then self:AddZoneHotspot(name, view) end
-        end
         for _, capital in ipairs(capitalFor(self.continentKey)) do
             if capital[1] ~= "Silvermoon City" and capital[1] ~= "The Exodar" then
                 self:AddPin({ label = capital[1], tele = capital[2], mapId = continent.mapId, x = capital[4], y = capital[5] }, true)
@@ -665,7 +760,7 @@ function T:ShowWorld()
     for _, capital in ipairs(CAPITALS) do
         if destinationAllowed(capital[2]) then table.insert(entries, { label = capital[1], tele = capital[2], indent = 1 }) end
     end
-    self:Display(entries); self:Message("Choose a continent or category"); self:RenderMap()
+    self:Display(entries); self:Message("Click a continent on the map; use the Outland button for Outland"); self:RenderMap()
 end
 
 function T:ShowInstances(kind, minimum, maximum)
@@ -758,23 +853,38 @@ function T:Build()
     self.mapContent = CreateFrame("Frame", nil, self.mapScroll); self.mapContent:SetSize(VIEW_W, VIEW_H); self.mapScroll:SetScrollChild(self.mapContent)
     self.mapTiles = {}
     for index = 1, 12 do local tile = self.mapContent:CreateTexture(nil, "BACKGROUND"); self.mapTiles[index] = tile end
+    self.mapHighlight = self.mapContent:CreateTexture(nil, "ARTWORK"); self.mapHighlight:Hide()
+    self.mapAreaLabel = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapAreaLabel:SetPoint("TOP", 0, -10)
+    self.mapAreaLabel:SetShadowColor(0, 0, 0, 1); self.mapAreaLabel:SetShadowOffset(1, -1); bumpFont(self.mapAreaLabel)
+    self.outlandButton = makeButton(self.mapContent, "OUTLAND", 115, 28); self.outlandButton:SetPoint("BOTTOM", self.mapContent, "BOTTOM", 0, 18)
+    self.outlandButton:SetScript("OnClick", function() T:ShowContinent("outland") end)
+    self.outlandButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Outland"); GameTooltip:AddLine("Click to open Outland", .4, 1, .4); GameTooltip:Show()
+    end)
+    self.outlandButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.mapHint = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapHint:SetPoint("CENTER"); self.mapHint:SetText("Choose a continent"); bumpFont(self.mapHint)
     self.pins, self.zoneButtons, self.explorationTiles = {}, {}, {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
     self.mapScroll:SetScript("OnMouseWheel", function(_, delta) T:SetZoom(T.zoom + (delta > 0 and 1 or -1)) end)
     self.mapScroll:SetScript("OnMouseDown", function(self)
-        local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); T.dragX, T.dragY = x / scale, y / scale; T.dragH, T.dragV = self:GetHorizontalScroll(), self:GetVerticalScroll(); T.dragging = true
+        local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); T.dragX, T.dragY = x / scale, y / scale; T.dragH, T.dragV = self:GetHorizontalScroll(), self:GetVerticalScroll(); T.dragMoved, T.dragging = nil, true
     end)
-    self.mapScroll:SetScript("OnMouseUp", function() T.dragging = nil end)
-    self.mapScroll:SetScript("OnUpdate", function(self)
+    self.mapScroll:SetScript("OnMouseUp", function()
+        local clicked = T.dragging and not T.dragMoved
+        T.dragging = nil
+        if clicked then T:HandleNativeMapClick() end
+    end)
+    self.mapScroll:SetScript("OnUpdate", function(self, elapsed)
+        T:UpdateNativeMapHighlight(elapsed)
         if not T.dragging then return end
         local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); x, y = x / scale, y / scale
+        if math.abs(x - T.dragX) > 4 or math.abs(y - T.dragY) > 4 then T.dragMoved = true end
         self:SetHorizontalScroll(math.max(0, math.min(T.mapWidth - VIEW_W, T.dragH - (x - T.dragX))))
         self:SetVerticalScroll(math.max(0, math.min(T.mapHeight - VIEW_H, T.dragV + (y - T.dragY))))
     end)
     local zoomOut = makeButton(frame, "-", 28, 24); zoomOut:SetPoint("TOPRIGHT", self.mapScroll, "TOPRIGHT", -9, -10); zoomOut:SetScript("OnClick", function() T:SetZoom(T.zoom - 1) end)
     local zoomIn = makeButton(frame, "+", 28, 24); zoomIn:SetPoint("TOPRIGHT", zoomOut, "BOTTOMRIGHT", 0, -4); zoomIn:SetScript("OnClick", function() T:SetZoom(T.zoom + 1) end)
     self.zoomText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); self.zoomText:SetPoint("TOPRIGHT", zoomIn, "BOTTOMRIGHT", 0, -5); self.zoomText:SetText("Zoom 1/3"); bumpFont(self.zoomText)
-    self.hitboxButton = makeButton(frame, "Hitboxes: OFF", 125, 24); self.hitboxButton:SetPoint("BOTTOMRIGHT", self.mapScroll, "TOPRIGHT", 0, 7)
+    self.hitboxButton = makeButton(frame, "Outlines: OFF", 125, 24); self.hitboxButton:SetPoint("BOTTOMRIGHT", self.mapScroll, "TOPRIGHT", 0, 7)
     self.hitboxButton:SetScript("OnClick", function() T:SetHitboxDebug(not T.hitboxDebug) end)
     local previous = makeButton(frame, "Previous", 75, 24); previous:SetPoint("BOTTOMLEFT", 25, 25); previous:SetScript("OnClick", function() if T.offset > 0 then T:Request(T.pendingSearch, math.max(0, T.offset - PAGE_SIZE)) end end)
     local nextButton = makeButton(frame, "Next", 75, 24); nextButton:SetPoint("LEFT", previous, "RIGHT", 7, 0); nextButton:SetScript("OnClick", function() if T.offset + PAGE_SIZE < T.total then T:Request(T.pendingSearch, T.offset + PAGE_SIZE) end end)
