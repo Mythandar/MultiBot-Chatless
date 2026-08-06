@@ -394,29 +394,15 @@ function T:ClearPins()
     self.pins = {}
 end
 
-function T:ClearZoneButtons()
-    for _, button in ipairs(self.zoneButtons or {}) do button:Hide() end
-    self.zoneButtons = {}
-end
-
 function T:ClearExploration()
     for _, texture in ipairs(self.explorationTiles or {}) do texture:Hide() end
     self.explorationTiles = {}
 end
 
-function T:SetHitboxDebug(enabled)
-    self.hitboxDebug = enabled and true or false
-    if self.hitboxButton then
-        self.hitboxButton:SetText(self.hitboxDebug and "Outlines: ON" or "Outlines: OFF")
-    end
-    self:RenderMap()
-    self:Message(self.hitboxDebug and "Native map outlines are emphasized" or "Native map outlines use normal highlighting")
-end
-
 function T:ClearMapHighlight()
     self.hoverElapsed, self.hoverName = 0, nil
     if self.mapHighlight then self.mapHighlight:Hide() end
-    if self.mapAreaLabel then self.mapAreaLabel:SetText("") end
+    if self.mapAreaLabel then self.mapAreaLabel:SetText(self.selectedZone and ("Region: " .. self.selectedZone) or "Region: —") end
 end
 
 function T:CursorMapPoint()
@@ -469,7 +455,7 @@ function T:UpdateNativeMapHighlight(elapsed, force)
 
     self.hoverName = name
     if not fileName or not width or width <= 0 or not height or height <= 0 then
-        self.mapHighlight:Hide(); self.mapAreaLabel:SetText(name or "")
+        self.mapHighlight:Hide(); self.mapAreaLabel:SetText(name and ("Region: " .. name) or "Region: —")
         return
     end
 
@@ -479,8 +465,8 @@ function T:UpdateNativeMapHighlight(elapsed, force)
     self.mapHighlight:SetSize(width * self.mapWidth, height * self.mapHeight)
     self.mapHighlight:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", offsetX * self.mapWidth, -offsetY * self.mapHeight)
     self.mapHighlight:SetVertexColor(1, .78, .08); self.mapHighlight:SetBlendMode("ADD")
-    self.mapHighlight:SetAlpha(self.hitboxDebug and .85 or .55); self.mapHighlight:Show()
-    self.mapAreaLabel:SetText(name or "")
+    self.mapHighlight:SetAlpha(.6); self.mapHighlight:Show()
+    self.mapAreaLabel:SetText(name and ("Region: " .. name) or "Region: —")
 end
 
 function T:HandleNativeMapClick()
@@ -555,64 +541,6 @@ function T:AddPin(item, labeled, bounds, red)
 end
 
 
-function T:AddZoneHotspot(name, zone)
-    local continent = CONTINENTS[self.continentKey]
-    local minX, maxX, minY, maxY = unpack(zone.bounds)
-    local left, top = self:MapPoint(continent, maxX, -minY)
-    local right, bottom = self:MapPoint(continent, minX, -maxY)
-    if not left or not right then return end
-    local overlay
-    for _, candidate in ipairs(self.mapOverlays or {}) do
-        if candidate.texture and candidate.texture:lower():find((zone.overlay or ""):lower(), 1, true) then overlay = candidate; break end
-    end
-    local button = CreateFrame("Button", nil, self.mapContent)
-    button:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", left * self.mapWidth, -top * self.mapHeight)
-    button:SetSize(math.max(24, (right - left) * self.mapWidth), math.max(20, (bottom - top) * self.mapHeight))
-    if self.hitboxDebug then
-        local fill = button:CreateTexture(nil, "OVERLAY")
-        fill:SetAllPoints(button); fill:SetTexture("Interface\\Buttons\\WHITE8x8"); fill:SetVertexColor(1, 0, 0, .18)
-
-        local function addEdge(point, relativePoint, width, height)
-            local edge = button:CreateTexture(nil, "OVERLAY")
-            edge:SetTexture("Interface\\Buttons\\WHITE8x8"); edge:SetVertexColor(1, .15, .05, .95)
-            edge:SetPoint(point, button, relativePoint, 0, 0); edge:SetSize(width or button:GetWidth(), height or button:GetHeight())
-        end
-        addEdge("TOPLEFT", "TOPLEFT", nil, 2)
-        addEdge("BOTTOMLEFT", "BOTTOMLEFT", nil, 2)
-        addEdge("TOPLEFT", "TOPLEFT", 2, nil)
-        addEdge("TOPRIGHT", "TOPRIGHT", 2, nil)
-
-        local debugLabel = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        debugLabel:SetPoint("CENTER", button, "CENTER", 0, 0); debugLabel:SetText(name); debugLabel:SetTextColor(1, .9, .2)
-        debugLabel:SetShadowColor(0, 0, 0, 1); debugLabel:SetShadowOffset(1, -1)
-    end
-    if overlay then
-        button.highlights = {}
-        local columns, rows = math.ceil(overlay.width / 256), math.ceil(overlay.height / 256)
-        for index = 1, columns * rows do
-            local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
-            local width, height = math.min(256, overlay.width - column * 256), math.min(256, overlay.height - row * 256)
-            local texture = self.mapContent:CreateTexture(nil, "ARTWORK")
-            texture:SetPoint("TOPLEFT", self.mapContent, "TOPLEFT", (overlay.x + column * 256) * self.mapWidth / 1002, -(overlay.y + row * 256) * self.mapHeight / 668)
-            texture:SetSize(width * self.mapWidth / 1002, height * self.mapHeight / 668)
-            texture:SetTexture(overlay.texture .. index); texture:SetTexCoord(0, width / 256, 0, height / 256)
-            texture:SetVertexColor(1, .75, .05); texture:SetBlendMode("ADD"); texture:SetAlpha(.55); texture:Hide()
-            table.insert(button.highlights, texture)
-        end
-    end
-    button:SetScript("OnEnter", function(self)
-        for _, texture in ipairs(self.highlights or {}) do texture:Show() end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(name); GameTooltip:AddLine("Click to open this zone", .4, 1, .4)
-        if T.hitboxDebug then
-            GameTooltip:AddLine(string.format("Hitbox: %.0f x %.0f", self:GetWidth(), self:GetHeight()), 1, .82, .2)
-        end
-        GameTooltip:Show()
-    end)
-    button:SetScript("OnLeave", function(self) for _, texture in ipairs(self.highlights or {}) do texture:Hide() end; GameTooltip:Hide() end)
-    button:SetScript("OnClick", function() T:ShowZone(name) end)
-    table.insert(self.zoneButtons, button)
-end
-
 function T:AcquireMapTextures(continent, zoneName)
     local textures, overlays = {}, {}
     if continent and continent.uiIndex and SetMapZoom then
@@ -642,7 +570,7 @@ end
 
 function T:RenderMap()
     local continent = CONTINENTS[self.continentKey]
-    self:ClearPins(); self:ClearZoneButtons(); self:ClearExploration(); self:ClearMapHighlight()
+    self:ClearPins(); self:ClearExploration(); self:ClearMapHighlight()
     if not continent then
         for _, tile in ipairs(self.mapTiles) do tile:Hide() end
         self.mapHint:SetText("Choose a continent"); self.mapHint:Show(); return
@@ -854,8 +782,8 @@ function T:Build()
     self.mapTiles = {}
     for index = 1, 12 do local tile = self.mapContent:CreateTexture(nil, "BACKGROUND"); self.mapTiles[index] = tile end
     self.mapHighlight = self.mapContent:CreateTexture(nil, "ARTWORK"); self.mapHighlight:Hide()
-    self.mapAreaLabel = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapAreaLabel:SetPoint("TOP", 0, -10)
-    self.mapAreaLabel:SetShadowColor(0, 0, 0, 1); self.mapAreaLabel:SetShadowOffset(1, -1); bumpFont(self.mapAreaLabel)
+    self.mapAreaLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.mapAreaLabel:SetPoint("BOTTOMRIGHT", self.mapScroll, "TOPRIGHT", 0, 10)
+    self.mapAreaLabel:SetWidth(310); self.mapAreaLabel:SetJustifyH("RIGHT"); self.mapAreaLabel:SetText("Region: —"); bumpFont(self.mapAreaLabel)
     self.outlandButton = makeButton(self.mapContent, "OUTLAND", 115, 28); self.outlandButton:SetPoint("BOTTOM", self.mapContent, "BOTTOM", 0, 18)
     self.outlandButton:SetScript("OnClick", function() T:ShowContinent("outland") end)
     self.outlandButton:SetScript("OnEnter", function(self)
@@ -863,7 +791,7 @@ function T:Build()
     end)
     self.outlandButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.mapHint = self.mapScroll:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"); self.mapHint:SetPoint("CENTER"); self.mapHint:SetText("Choose a continent"); bumpFont(self.mapHint)
-    self.pins, self.zoneButtons, self.explorationTiles = {}, {}, {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
+    self.pins, self.explorationTiles = {}, {}; self.zoom = 1; self.mapWidth, self.mapHeight = VIEW_W, VIEW_H
     self.mapScroll:SetScript("OnMouseWheel", function(_, delta) T:SetZoom(T.zoom + (delta > 0 and 1 or -1)) end)
     self.mapScroll:SetScript("OnMouseDown", function(self)
         local scale = UIParent:GetEffectiveScale(); local x, y = GetCursorPosition(); T.dragX, T.dragY = x / scale, y / scale; T.dragH, T.dragV = self:GetHorizontalScroll(), self:GetVerticalScroll(); T.dragMoved, T.dragging = nil, true
@@ -884,8 +812,6 @@ function T:Build()
     local zoomOut = makeButton(frame, "-", 28, 24); zoomOut:SetPoint("TOPRIGHT", self.mapScroll, "TOPRIGHT", -9, -10); zoomOut:SetScript("OnClick", function() T:SetZoom(T.zoom - 1) end)
     local zoomIn = makeButton(frame, "+", 28, 24); zoomIn:SetPoint("TOPRIGHT", zoomOut, "BOTTOMRIGHT", 0, -4); zoomIn:SetScript("OnClick", function() T:SetZoom(T.zoom + 1) end)
     self.zoomText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); self.zoomText:SetPoint("TOPRIGHT", zoomIn, "BOTTOMRIGHT", 0, -5); self.zoomText:SetText("Zoom 1/3"); bumpFont(self.zoomText)
-    self.hitboxButton = makeButton(frame, "Outlines: OFF", 125, 24); self.hitboxButton:SetPoint("BOTTOMRIGHT", self.mapScroll, "TOPRIGHT", 0, 7)
-    self.hitboxButton:SetScript("OnClick", function() T:SetHitboxDebug(not T.hitboxDebug) end)
     local previous = makeButton(frame, "Previous", 75, 24); previous:SetPoint("BOTTOMLEFT", 25, 25); previous:SetScript("OnClick", function() if T.offset > 0 then T:Request(T.pendingSearch, math.max(0, T.offset - PAGE_SIZE)) end end)
     local nextButton = makeButton(frame, "Next", 75, 24); nextButton:SetPoint("LEFT", previous, "RIGHT", 7, 0); nextButton:SetScript("OnClick", function() if T.offset + PAGE_SIZE < T.total then T:Request(T.pendingSearch, T.offset + PAGE_SIZE) end end)
     self.pageText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.pageText:SetPoint("LEFT", nextButton, "RIGHT", 10, 0); bumpFont(self.pageText)
