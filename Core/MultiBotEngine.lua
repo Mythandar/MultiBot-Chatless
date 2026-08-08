@@ -562,10 +562,23 @@ MultiBot.Select = function(pParent, pIndex, pTexture)
 end
 
 local SECTION_AUTO_CLOSE_DELAY_SECONDS = 10.0
+local SECTION_AUTO_CLOSE_POLL_SECONDS = 0.2
 
 local function IsMultiBarSection(frame)
 	local multiBar = MultiBot.frames and MultiBot.frames["MultiBar"]
 	local current = frame
+	while current do
+		if current == multiBar then
+			return true
+		end
+		current = current.GetParent and current:GetParent() or nil
+	end
+	return false
+end
+
+local function IsMouseOverMultiBar()
+	local multiBar = MultiBot.frames and MultiBot.frames["MultiBar"]
+	local current = GetMouseFocus and GetMouseFocus() or nil
 	while current do
 		if current == multiBar then
 			return true
@@ -588,7 +601,9 @@ MultiBot.ArmSectionAutoClose = function(frame, delaySeconds)
 		delay = SECTION_AUTO_CLOSE_DELAY_SECONDS
 	end
 
-	MultiBot.TimerAfter(delay, function()
+	frame._mbSectionAutoCloseDeadline = nil
+
+	local function checkSectionAutoClose()
 		if not frame or frame._mbSectionAutoCloseNonce ~= nonce then
 			return
 		end
@@ -596,14 +611,28 @@ MultiBot.ArmSectionAutoClose = function(frame, delaySeconds)
 			return
 		end
 
-		if MultiBot.RestoreCollapsedUnitBarsFromDropdown then
-			MultiBot.RestoreCollapsedUnitBarsFromDropdown(frame)
+		if IsMouseOverMultiBar() then
+			frame._mbSectionAutoCloseDeadline = nil
+		else
+			local now = GetTime()
+			if not frame._mbSectionAutoCloseDeadline then
+				frame._mbSectionAutoCloseDeadline = now + delay
+			elseif now >= frame._mbSectionAutoCloseDeadline then
+				if MultiBot.RestoreCollapsedUnitBarsFromDropdown then
+					MultiBot.RestoreCollapsedUnitBarsFromDropdown(frame)
+				end
+				frame:Hide()
+				if MultiBot.RequestClickBlockerUpdate then
+					MultiBot.RequestClickBlockerUpdate(frame)
+				end
+				return
+			end
 		end
-		frame:Hide()
-		if MultiBot.RequestClickBlockerUpdate then
-			MultiBot.RequestClickBlockerUpdate(frame)
-		end
-	end)
+
+		MultiBot.TimerAfter(SECTION_AUTO_CLOSE_POLL_SECONDS, checkSectionAutoClose)
+	end
+
+	MultiBot.TimerAfter(SECTION_AUTO_CLOSE_POLL_SECONDS, checkSectionAutoClose)
 
 	return true
 end
@@ -621,6 +650,7 @@ end
 MultiBot.ShowHideSwitch = function(pFrame)
 	if(pFrame:IsVisible()) then
 		pFrame._mbSectionAutoCloseNonce = (pFrame._mbSectionAutoCloseNonce or 0) + 1
+		pFrame._mbSectionAutoCloseDeadline = nil
 		if MultiBot.RestoreCollapsedUnitBarsFromDropdown then
 			MultiBot.RestoreCollapsedUnitBarsFromDropdown(pFrame)
 		end
