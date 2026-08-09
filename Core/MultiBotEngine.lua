@@ -576,13 +576,37 @@ local function IsMultiBarSection(frame)
 	return false
 end
 
+local function IsMouseOverRegion(region)
+	if not region or not region.IsVisible or not region:IsVisible() then
+		return false
+	end
+	if type(MouseIsOver) == "function" then
+		return MouseIsOver(region)
+	end
+
+	local left, right, bottom, top = region:GetLeft(), region:GetRight(), region:GetBottom(), region:GetTop()
+	if not left or not right or not bottom or not top or not GetCursorPosition then
+		return false
+	end
+	local scale = region.GetEffectiveScale and region:GetEffectiveScale() or 1
+	local x, y = GetCursorPosition()
+	x, y = x / scale, y / scale
+	return x >= left and x <= right and y >= bottom and y <= top
+end
+
 local function IsMouseOverSection(frame)
-	local current = GetMouseFocus and GetMouseFocus() or nil
-	while current do
-		if current == frame then
+	if IsMouseOverRegion(frame) or IsMouseOverRegion(frame.clickBlocker) then
+		return true
+	end
+	for _, button in pairs(frame.buttons or {}) do
+		if IsMouseOverRegion(button) then
 			return true
 		end
-		current = current.GetParent and current:GetParent() or nil
+	end
+	for _, child in pairs(frame.frames or {}) do
+		if child.IsShown and child:IsShown() and IsMouseOverSection(child) then
+			return true
+		end
 	end
 	return false
 end
