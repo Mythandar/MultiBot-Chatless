@@ -343,6 +343,22 @@ local function destinationAllowed(name)
     return not requiredFaction or not faction or requiredFaction == faction
 end
 
+local function getCloseAfterTeleport()
+    local settings = MultiBot.Store and MultiBot.Store.GetUIChildStore and MultiBot.Store.GetUIChildStore("teleport")
+    return not settings or settings.closeAfterTeleport ~= false
+end
+
+local function setCloseAfterTeleport(value)
+    local settings = MultiBot.Store and MultiBot.Store.EnsureUIChildStore and MultiBot.Store.EnsureUIChildStore("teleport")
+    if settings then settings.closeAfterTeleport = value and true or false end
+end
+
+local function summonAltBots()
+    if not MultiBot.ActionToGroup then return end
+    if (GetNumRaidMembers() or 0) <= 5 and (GetNumPartyMembers() or 0) <= 0 then return end
+    MultiBot.ActionToGroup("summon")
+end
+
 local function teleport(name)
     if not name or name == "" then return end
     if not destinationAllowed(name) then
@@ -350,6 +366,8 @@ local function teleport(name)
         return
     end
     SendChatMessage(".tele " .. name, "SAY")
+    if getCloseAfterTeleport() and T.frame then T.frame:Hide() end
+    if MultiBot.TimerAfter then MultiBot.TimerAfter(1, summonAltBots) else summonAltBots() end
 end
 
 local function capitalFor(key)
@@ -753,6 +771,14 @@ function T:Build()
     local searchButton = makeButton(frame, "Search", 65, 25); searchButton:SetPoint("LEFT", self.search, "RIGHT", 7, 0); searchButton:SetScript("OnClick", function() T:Request(T.search:GetText(), 0) end)
     local back = makeButton(frame, "Back", 65, 25); back:SetPoint("LEFT", searchButton, "RIGHT", 10, 0); back:SetScript("OnClick", function() if T.continentKey then T:ShowContinent(T.continentKey) else T:ShowWorld() end end)
     local home = makeButton(frame, "Home", 65, 25); home:SetPoint("LEFT", back, "RIGHT", 7, 0); home:SetScript("OnClick", function() T:ShowWorld() end)
+    self.closeAfterTeleport = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate"); self.closeAfterTeleport:SetSize(24, 24); self.closeAfterTeleport:SetPoint("TOPRIGHT", -202, -47)
+    self.closeAfterTeleport:SetChecked(getCloseAfterTeleport())
+    self.closeAfterTeleport.text = self.closeAfterTeleport:CreateFontString(nil, "OVERLAY", "GameFontHighlight"); self.closeAfterTeleport.text:SetPoint("LEFT", self.closeAfterTeleport, "RIGHT", 2, 1); self.closeAfterTeleport.text:SetText("Close after teleport"); bumpFont(self.closeAfterTeleport.text)
+    self.closeAfterTeleport:SetScript("OnClick", function(self) setCloseAfterTeleport(self:GetChecked()) end)
+    self.closeAfterTeleport:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Close after teleport"); GameTooltip:AddLine("Altbots are summoned one second after every teleport.", 1, 1, 1, true); GameTooltip:Show()
+    end)
+    self.closeAfterTeleport:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.breadcrumb = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); self.breadcrumb:SetPoint("TOPLEFT", 25, -82); bumpFont(self.breadcrumb)
     local world = makeButton(frame, "WORLD", 95, 26); world:SetPoint("TOPLEFT", 25, -105); world:SetScript("OnClick", function() T:ShowWorld() end)
     local dungeons = makeButton(frame, "DUNGEONS", 105, 26); dungeons:SetPoint("LEFT", world, "RIGHT", 6, 0); dungeons:SetScript("OnClick", function() T:ShowInstances("dungeons") end)
