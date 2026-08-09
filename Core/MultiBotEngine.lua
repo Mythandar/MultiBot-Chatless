@@ -561,7 +561,7 @@ MultiBot.Select = function(pParent, pIndex, pTexture)
 	return true
 end
 
-local SECTION_AUTO_CLOSE_DELAY_SECONDS = 10.0
+local SECTION_AUTO_CLOSE_DELAY_SECONDS = 2.0
 local SECTION_AUTO_CLOSE_POLL_SECONDS = 0.2
 
 local function IsMultiBarSection(frame)
@@ -846,7 +846,7 @@ MultiBot.TransferCollapsedUnitBarsToOwner = function(targetFrame)
 	return true
 end
 
-local COLLAPSED_RESTORE_DELAY_SECONDS = 10.0
+local COLLAPSED_RESTORE_DELAY_SECONDS = 2.0
 
 MultiBot.ArmCollapsedUnitBarsAutoRestore = function(ownerBar, delaySeconds)
 	if not ownerBar or type(ownerBar._mbCollapsedBars) ~= "table" or #ownerBar._mbCollapsedBars == 0 then
