@@ -576,11 +576,10 @@ local function IsMultiBarSection(frame)
 	return false
 end
 
-local function IsMouseOverMultiBar()
-	local multiBar = MultiBot.frames and MultiBot.frames["MultiBar"]
+local function IsMouseOverSection(frame)
 	local current = GetMouseFocus and GetMouseFocus() or nil
 	while current do
-		if current == multiBar then
+		if current == frame then
 			return true
 		end
 		current = current.GetParent and current:GetParent() or nil
@@ -611,7 +610,7 @@ MultiBot.ArmSectionAutoClose = function(frame, delaySeconds)
 			return
 		end
 
-		if IsMouseOverMultiBar() then
+		if IsMouseOverSection(frame) then
 			frame._mbSectionAutoCloseDeadline = nil
 		else
 			local now = GetTime()
