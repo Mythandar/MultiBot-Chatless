@@ -45,6 +45,12 @@ local function createModeUI(tLeft)
             bindModeToggleAction(button.parent.parent.buttons[MODE_BUTTON_NAME], "grind", "follow")
         end
     end
+
+    modeFrame.addButton("Flee", 0, 60, "Interface\\AddOns\\MultiBot\\Icons\\flee.blp", MultiBot.L("tips.flee.flee")).doLeft = function(button)
+        if MultiBot.SelectToGroup(button.parent.parent, MODE_FRAME_NAME, button.texture, "flee") then
+            bindModeToggleAction(button.parent.parent.buttons[MODE_BUTTON_NAME], "flee", "follow")
+        end
+    end
 end
 
 local function createStayFollowUI(tLeft)
