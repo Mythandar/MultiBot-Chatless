@@ -1723,8 +1723,30 @@ function MultiBot.InitializeTalentFrameModule()
         end)
     end
 
+    function MultiBot.talent.makeDecorativeFrameMouseTransparent(frame)
+        if not frame then
+            return frame
+        end
+
+        if frame.EnableMouse then
+            frame:EnableMouse(false)
+        end
+
+        -- MultiBot.newFrame adds a mouse-enabled click blocker for menu and
+        -- button-bar backgrounds. Talent arrows and rank labels are decorative,
+        -- so that blocker must never sit between the cursor and a talent button.
+        local clickBlocker = frame.clickBlocker
+        if clickBlocker then
+            clickBlocker:EnableMouse(false)
+            clickBlocker:Hide()
+        end
+
+        return frame
+    end
+
     MultiBot.talent.addArrow = function(pTab, pID, pNeeds, piX, piY, pTexture)
 	local tArrow = pTab.addFrame("Arrow" .. pID, piX * pTab.grid.icons.size - pTab.grid.arrows.x, pTab.grid.arrows.y - piY * pTab.grid.icons.size, pTab.grid.arrows.size)
+	MultiBot.talent.makeDecorativeFrameMouseTransparent(tArrow)
 	tArrow.inactive = "Interface\\AddOns\\MultiBot\\Textures\\Talent_Silver_" .. pTexture .. ".blp"
 	tArrow.addTexture(tArrow.inactive)
 	tArrow.active = "Interface\\AddOns\\MultiBot\\Textures\\Talent_Gold_" .. pTexture .. ".blp"
@@ -1934,6 +1956,7 @@ function MultiBot.InitializeTalentFrameModule()
     MultiBot.talent.addValue = function(pTab, pID, piX, piY, pRank, pMax)
 	local tColor = MultiBot.IF(pRank > 0, MultiBot.IF(pRank < pMax, "|cff4db24d", "|cffffcc00"), "|cffffffff")
 	local tValue = pTab.addFrame(pID, piX * pTab.grid.icons.size - pTab.grid.values.x, pTab.grid.values.y - piY * pTab.grid.icons.size, 24, 18, 12)
+	MultiBot.talent.makeDecorativeFrameMouseTransparent(tValue)
 	tValue.addTexture("Interface\\AddOns\\MultiBot\\Textures\\Talent_Black.blp")
 	tValue.addText("Value", tColor .. pRank .. "/" .. pMax .. "|r", "CENTER", -0.5, 1, 10)
 	if(MultiBot.talent.points == 0 and pRank == 0) then tValue:Hide() end

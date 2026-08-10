@@ -561,8 +561,117 @@ MultiBot.Select = function(pParent, pIndex, pTexture)
 	return true
 end
 
+local SECTION_AUTO_CLOSE_DELAY_SECONDS = 2.0
+local SECTION_AUTO_CLOSE_POLL_SECONDS = 0.2
+
+local function IsMultiBarSection(frame)
+	local multiBar = MultiBot.frames and MultiBot.frames["MultiBar"]
+	local current = frame
+	while current do
+		if current == multiBar then
+			return true
+		end
+		current = current.GetParent and current:GetParent() or nil
+	end
+	return false
+end
+
+local function IsMouseOverRegion(region)
+	if not region or not region.IsVisible or not region:IsVisible() then
+		return false
+	end
+	return region.IsMouseOver and region:IsMouseOver() or false
+end
+
+local function IsMouseOverSection(frame)
+	if IsMouseOverRegion(frame) or IsMouseOverRegion(frame.clickBlocker) then
+		return true
+	end
+	for _, button in pairs(frame.buttons or {}) do
+		if IsMouseOverRegion(button) then
+			return true
+		end
+	end
+	for _, child in pairs(frame.frames or {}) do
+		if child.IsShown and child:IsShown() and IsMouseOverSection(child) then
+			return true
+		end
+	end
+	return false
+end
+
+MultiBot.ArmSectionAutoClose = function(frame, delaySeconds)
+	if not frame or not frame.HookScript or not IsMultiBarSection(frame) then
+		return false
+	end
+
+	local delay = delaySeconds
+	if type(delay) ~= "number" or delay <= 0 then
+		delay = SECTION_AUTO_CLOSE_DELAY_SECONDS
+	end
+
+	frame._mbSectionAutoClose = true
+	frame._mbSectionAutoCloseDelay = delay
+	frame._mbSectionAutoCloseElapsed = 0
+	frame._mbSectionAutoCloseDeadline = nil
+
+	if not frame._mbSectionAutoCloseUpdateHooked then
+		frame:HookScript("OnUpdate", function(self, elapsed)
+			if not self._mbSectionAutoClose then
+				return
+			end
+
+			self._mbSectionAutoCloseElapsed = (self._mbSectionAutoCloseElapsed or 0) + elapsed
+			if self._mbSectionAutoCloseElapsed < SECTION_AUTO_CLOSE_POLL_SECONDS then
+				return
+			end
+			self._mbSectionAutoCloseElapsed = 0
+
+			if IsMouseOverSection(self) then
+				self._mbSectionAutoCloseDeadline = nil
+				return
+			end
+
+			local now = GetTime()
+			if not self._mbSectionAutoCloseDeadline then
+				self._mbSectionAutoCloseDeadline = now + (self._mbSectionAutoCloseDelay or SECTION_AUTO_CLOSE_DELAY_SECONDS)
+				return
+			end
+			if now < self._mbSectionAutoCloseDeadline then
+				return
+			end
+
+			self._mbSectionAutoClose = false
+			self._mbSectionAutoCloseDeadline = nil
+			if MultiBot.RestoreCollapsedUnitBarsFromDropdown then
+				MultiBot.RestoreCollapsedUnitBarsFromDropdown(self)
+			end
+			self:Hide()
+			if MultiBot.RequestClickBlockerUpdate then
+				MultiBot.RequestClickBlockerUpdate(self)
+			end
+		end)
+		frame._mbSectionAutoCloseUpdateHooked = true
+	end
+
+	return true
+end
+
+MultiBot.RefreshSectionAutoClose = function(frame)
+	local current = frame
+	while current do
+		if current._mbSectionAutoClose and current.IsShown and current:IsShown() then
+			MultiBot.ArmSectionAutoClose(current)
+		end
+		current = current.GetParent and current:GetParent() or nil
+	end
+end
+
 MultiBot.ShowHideSwitch = function(pFrame)
 	if(pFrame:IsVisible()) then
+		pFrame._mbSectionAutoClose = false
+		pFrame._mbSectionAutoCloseNonce = (pFrame._mbSectionAutoCloseNonce or 0) + 1
+		pFrame._mbSectionAutoCloseDeadline = nil
 		if MultiBot.RestoreCollapsedUnitBarsFromDropdown then
 			MultiBot.RestoreCollapsedUnitBarsFromDropdown(pFrame)
 		end
@@ -576,6 +685,9 @@ MultiBot.ShowHideSwitch = function(pFrame)
 	end
 
 	pFrame:Show()
+	if MultiBot.ArmSectionAutoClose then
+		MultiBot.ArmSectionAutoClose(pFrame)
+	end
 	if(MultiBot.RequestClickBlockerUpdate) then MultiBot.RequestClickBlockerUpdate(pFrame) end
 	return true
 end
@@ -734,7 +846,7 @@ MultiBot.TransferCollapsedUnitBarsToOwner = function(targetFrame)
 	return true
 end
 
-local COLLAPSED_RESTORE_DELAY_SECONDS = 10.0
+local COLLAPSED_RESTORE_DELAY_SECONDS = 2.0
 
 MultiBot.ArmCollapsedUnitBarsAutoRestore = function(ownerBar, delaySeconds)
 	if not ownerBar or type(ownerBar._mbCollapsedBars) ~= "table" or #ownerBar._mbCollapsedBars == 0 then
@@ -1369,6 +1481,9 @@ MultiBot.newButton = function(pParent, pX, pY, pSize, pTexture, pTip, oTemplate)
 		if(pEvent == "LeftButton" and button.doLeft ~= nil) then button.doLeft(button) end
 		if MultiBot.MainBarAutoHide_NotifyInteraction then
 			MultiBot.MainBarAutoHide_NotifyInteraction()
+		end
+		if MultiBot.RefreshSectionAutoClose then
+			MultiBot.RefreshSectionAutoClose(button.parent)
 		end
 
 		if button.parent and button.parent._mbDropdownManaged then
@@ -2056,6 +2171,12 @@ MultiBot.addSelf = function(pClass, pName)
   btn.roster = "players"
   btn.class  = tClass
   btn.name   = pName
+  -- Keep Selfbot clickable regardless of whether the roster was populated by
+  -- the legacy chat parser or the Chatless bridge. The server response handler
+  -- remains responsible for updating the button's enabled visual state.
+  btn.doLeft = function()
+    SendChatMessage(".playerbot bot self", "SAY")
+  end
   if MultiBot.IsFavorite and MultiBot.IsFavorite(pName) and MultiBot.UpdateFavoritesIndex then
     MultiBot.UpdateFavoritesIndex()
   end
