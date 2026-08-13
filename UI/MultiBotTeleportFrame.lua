@@ -283,28 +283,46 @@ local REGIONS = {
     },
 }
 
-local DUNGEONS = {
-    { "Ragefire Chasm", "RagefireChasm", 13, 20 }, { "The Deadmines", "Deadmines", 15, 25 }, { "Wailing Caverns", "WailingCaverns", 15, 25 },
-    { "Shadowfang Keep", "ShadowFangKeep", 18, 30 }, { "Blackfathom Deeps", "BlackfathomDeeps", 20, 30 }, { "The Stockade", "TheStockade", 22, 32 },
-    { "Gnomeregan", "Gnomeregan", 24, 34 }, { "Razorfen Kraul", "RazorfenKraul", 25, 35 }, { "Scarlet Monastery", "ScarletMonastery", 26, 45 },
-    { "Razorfen Downs", "RazorfenDowns", 35, 45 }, { "Uldaman", "Uldaman", 35, 45 }, { "Zul'Farrak", "ZulFarrak", 44, 54 },
-    { "Maraudon", "Maraudon", 46, 55 }, { "The Sunken Temple", "TheSunkenTemple", 50, 60 }, { "Blackrock Depths", "BlackrockDepths", 52, 60 },
-    { "Dire Maul", "DireMaulNorth", 55, 60 }, { "Scholomance", "Scholomance", 55, 60 }, { "Stratholme", "Stratholme", 55, 60 },
-    { "Blackrock Spire", "BlackrockSpire", 55, 60 },
-    { "Hellfire Ramparts", "HellfireRamparts", 58, 70 }, { "The Blood Furnace", "TheBloodFurnace", 59, 70 }, { "The Slave Pens", "TheSlavePens", 60, 70 },
-    { "The Underbog", "TheUnderbog", 61, 70 }, { "Mana-Tombs", "ManaTombs", 63, 70 }, { "Auchenai Crypts", "AuchenaiCrypts", 64, 70 },
-    { "Sethekk Halls", "SethekkHalls", 65, 70 }, { "Old Hillsbrad", "OldHillsbradFoothills", 66, 70 }, { "The Steamvault", "TheSteamvault", 67, 70 },
-    { "Shadow Labyrinth", "ShadowLabyrinth", 67, 70 }, { "The Shattered Halls", "TheShatteredHalls", 67, 70 },
-    { "The Mechanar", "TheMechanar", 68, 70 }, { "The Botanica", "TheBotanica", 68, 70 }, { "The Arcatraz", "TheArcatraz", 68, 70 },
-    { "The Black Morass", "TheBlackMorass", 68, 70 }, { "Magisters' Terrace", "MagistersTerrace", 68, 70 },
-    { "Utgarde Keep", "UtgardeKeep", 68, 75 }, { "The Nexus", "TheNexus", 69, 75 },
-    { "Azjol-Nerub", "AzjolNerub", 72, 77 }, { "Ahn'kahet", "AhnKahet", 73, 78 }, { "Drak'Tharon Keep", "DrakTharonKeep", 74, 79 },
-    { "The Violet Hold", "TheVioletHold", 75, 80 }, { "Gundrak", "Gundrak", 76, 80 }, { "Halls of Stone", "HallsOfStone", 77, 80 },
-    { "Halls of Lightning", "HallsOfLightning", 78, 80 }, { "The Oculus", "TheOculus", 78, 80 },
-    { "Utgarde Pinnacle", "UtgardePinnacle", 78, 80 }, { "The Culling of Stratholme", "TheCullingOfStratholme", 78, 80 },
-    { "Trial of the Champion", "TrialOfTheChampion", 80, 80 }, { "The Forge of Souls", "TheForgeOfSouls", 80, 80 },
-    { "Pit of Saron", "PitOfSaron", 80, 80 }, { "Halls of Reflection", "HallsOfReflection", 80, 80 },
+local DUNGEON_EXPANSIONS = {
+    { key = "classic", label = "Classic", minimum = 13, maximum = 60, ranges = { { 13, 25 }, { 26, 40 }, { 41, 50 }, { 51, 60 } } },
+    { key = "tbc", label = "The Burning Crusade", minimum = 58, maximum = 70, ranges = { { 58, 64 }, { 65, 67 }, { 68, 70 } } },
+    { key = "wrath", label = "Wrath of the Lich King", minimum = 68, maximum = 80, ranges = { { 68, 73 }, { 74, 77 }, { 78, 79 }, { 80, 80 } } },
 }
+
+local DUNGEONS = {
+    classic = {
+        { "Ragefire Chasm", "RagefireChasm", 13, 20 }, { "The Deadmines", "Deadmines", 15, 25 }, { "Wailing Caverns", "WailingCaverns", 15, 25 },
+        { "Shadowfang Keep", "ShadowFangKeep", 18, 30 }, { "Blackfathom Deeps", "BlackfathomDeeps", 20, 30 }, { "The Stockade", "TheStockade", 22, 32 },
+        { "Gnomeregan", "Gnomeregan", 24, 34 }, { "Razorfen Kraul", "RazorfenKraul", 25, 35 }, { "Scarlet Monastery", "ScarletMonastery", 26, 45 },
+        { "Razorfen Downs", "RazorfenDowns", 35, 45 }, { "Uldaman", "Uldaman", 35, 45 }, { "Zul'Farrak", "ZulFarrak", 44, 54 },
+        { "Maraudon", "Maraudon", 46, 55 }, { "The Sunken Temple", "TheSunkenTemple", 50, 60 }, { "Blackrock Depths", "BlackrockDepths", 52, 60 },
+        { "Dire Maul", "DireMaulNorth", 55, 60 }, { "Scholomance", "Scholomance", 55, 60 }, { "Stratholme", "Stratholme", 55, 60 },
+        { "Blackrock Spire", "BlackrockSpire", 55, 60 },
+    },
+    tbc = {
+        { "Hellfire Ramparts", "HellfireRamparts", 58, 70 }, { "The Blood Furnace", "TheBloodFurnace", 59, 70 }, { "The Slave Pens", "TheSlavePens", 60, 70 },
+        { "The Underbog", "TheUnderbog", 61, 70 }, { "Mana-Tombs", "ManaTombs", 63, 70 }, { "Auchenai Crypts", "AuchenaiCrypts", 64, 70 },
+        { "Sethekk Halls", "SethekkHalls", 65, 70 }, { "Old Hillsbrad", "OldHillsbradFoothills", 66, 70 }, { "The Steamvault", "TheSteamvault", 67, 70 },
+        { "Shadow Labyrinth", "ShadowLabyrinth", 67, 70 }, { "The Shattered Halls", "TheShatteredHalls", 67, 70 },
+        { "The Mechanar", "TheMechanar", 68, 70 }, { "The Botanica", "TheBotanica", 68, 70 }, { "The Arcatraz", "TheArcatraz", 68, 70 },
+        { "The Black Morass", "TheBlackMorass", 68, 70 }, { "Magisters' Terrace", "MagistersTerrace", 68, 70 },
+    },
+    wrath = {
+        { "Utgarde Keep", "UtgardeKeep", 68, 75 }, { "The Nexus", "TheNexus", 69, 75 },
+        { "Azjol-Nerub", "AzjolNerub", 72, 77 }, { "Ahn'kahet", "AhnKahet", 73, 78 }, { "Drak'Tharon Keep", "DrakTharonKeep", 74, 79 },
+        { "The Violet Hold", "TheVioletHold", 75, 80 }, { "Gundrak", "Gundrak", 76, 80 }, { "Halls of Stone", "HallsOfStone", 77, 80 },
+        { "Halls of Lightning", "HallsOfLightning", 78, 80 }, { "The Oculus", "TheOculus", 78, 80 },
+        { "Utgarde Pinnacle", "UtgardePinnacle", 78, 80 }, { "The Culling of Stratholme", "TheCullingOfStratholme", 78, 80 },
+        { "Trial of the Champion", "TrialOfTheChampion", 80, 80 }, { "The Forge of Souls", "TheForgeOfSouls", 80, 80 },
+        { "Pit of Saron", "PitOfSaron", 80, 80 }, { "Halls of Reflection", "HallsOfReflection", 80, 80 },
+    },
+}
+
+local function dungeonExpansion(key)
+    for _, expansion in ipairs(DUNGEON_EXPANSIONS) do
+        if expansion.key == key then return expansion end
+    end
+end
 
 local RAIDS = {
     { "Molten Core", "MoltenCore", 60 }, { "Onyxia's Lair", "OnyxiasLair", 60 }, { "Blackwing Lair", "BlackwingLair", 60 },
@@ -709,21 +727,48 @@ function T:ShowWorld()
     self:Display(entries); self:Message("Click a continent on the map; use the Outland button for Outland"); self:RenderMap()
 end
 
-function T:ShowInstances(kind, minimum, maximum)
+function T:ShowInstances(kind, selection, minimum, maximum)
     self.category, self.continentKey = kind, nil; self:SetBreadcrumb(kind == "dungeons" and "Dungeons" or "Raids")
     local level = UnitLevel("player") or 1; local entries = {}
     if kind == "dungeons" then
-        if minimum then
-            table.insert(entries, { label = "<  All level ranges", rangeHome = true })
-            table.insert(entries, { label = minimum .. " - " .. maximum, header = true })
-            for _, item in ipairs(DUNGEONS) do if item[3] >= minimum and item[3] <= maximum then table.insert(entries, { label = item[1], tele = item[2], indent = 1, detail = item[3] .. "-" .. item[4] }) end end
+        local expansion = dungeonExpansion(selection)
+        if expansion and minimum then
+            self:SetBreadcrumb("Dungeons  >  " .. expansion.label .. "  >  Level " .. minimum .. "-" .. maximum)
+            table.insert(entries, { label = "<  " .. expansion.label .. " level ranges", dungeonExpansion = expansion.key })
+            table.insert(entries, { label = "LEVEL " .. minimum .. (minimum == maximum and "" or (" - " .. maximum)), header = true })
+            for _, item in ipairs(DUNGEONS[expansion.key]) do
+                if item[3] >= minimum and item[3] <= maximum then
+                    table.insert(entries, { label = item[1], tele = item[2], indent = 1, detail = item[3] .. "-" .. item[4] })
+                end
+            end
+        elseif expansion then
+            self:SetBreadcrumb("Dungeons  >  " .. expansion.label)
+            table.insert(entries, { label = "<  All expansions", dungeonHome = true })
+            table.insert(entries, { label = expansion.label:upper(), header = true })
+            for _, range in ipairs(expansion.ranges) do
+                local rangeLabel = range[1] == range[2] and ("Level " .. range[1]) or ("Levels " .. range[1] .. " - " .. range[2])
+                table.insert(entries, {
+                    label = rangeLabel,
+                    dungeonExpansion = expansion.key,
+                    dungeonRange = range,
+                    arrow = ">  ",
+                    detail = level >= range[1] and "" or "Above level",
+                })
+            end
         else
-            table.insert(entries, { label = "DUNGEONS BY LEVEL", header = true })
-            local ranges = { { 13, 25 }, { 26, 40 }, { 41, 59 }, { 60, 66 }, { 67, 72 }, { 73, 77 }, { 78, 80 } }
-            for _, range in ipairs(ranges) do table.insert(entries, { label = range[1] .. " - " .. range[2], range = range, arrow = ">  ", detail = level >= range[1] and "" or "Above level" }) end
+            table.insert(entries, { label = "DUNGEONS BY EXPANSION", header = true })
+            for _, item in ipairs(DUNGEON_EXPANSIONS) do
+                table.insert(entries, {
+                    label = item.label,
+                    dungeonExpansion = item.key,
+                    arrow = ">  ",
+                    detail = "Levels " .. item.minimum .. "-" .. item.maximum,
+                })
+            end
         end
-        self:Message("Dungeon list by level; progression filtering still requires bridge data")
+        self:Message("Dungeons grouped by expansion and recommended level")
     else
+        minimum = selection
         if minimum then
             table.insert(entries, { label = "<  All raid tiers", raidHome = true })
             table.insert(entries, { label = "LEVEL " .. minimum .. " RAIDS", header = true })
@@ -796,7 +841,9 @@ function T:Build()
         row:SetScript("OnClick", function(self)
             local item = self.item; if not item then return end
             if item.tele then teleport(item.tele) elseif item.continent then T:ShowContinent(item.continent) elseif item.group then T:ShowRegion(item.group)
-            elseif item.zone then T:ShowZone(item.zone) elseif item.search then T:Request(item.search, 0) elseif item.range then T:ShowInstances("dungeons", item.range[1], item.range[2]) elseif item.rangeHome then T:ShowInstances("dungeons")
+            elseif item.zone then T:ShowZone(item.zone) elseif item.search then T:Request(item.search, 0)
+            elseif item.dungeonExpansion and item.dungeonRange then T:ShowInstances("dungeons", item.dungeonExpansion, item.dungeonRange[1], item.dungeonRange[2])
+            elseif item.dungeonExpansion then T:ShowInstances("dungeons", item.dungeonExpansion) elseif item.dungeonHome then T:ShowInstances("dungeons")
             elseif item.raidLevel then T:ShowInstances("raids", item.raidLevel) elseif item.raidHome then T:ShowInstances("raids") elseif item.back then T:ShowContinent(T.continentKey) end
         end)
         self.rows[index] = row
