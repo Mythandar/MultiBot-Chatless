@@ -168,6 +168,7 @@ local function ensureBridgeState()
   state.playerRestRegen = state.playerRestRegen or {
     available = nil,
     active = false,
+    autoSitActive = false,
     pending = nil,
     sequence = 0,
     error = nil,
@@ -256,16 +257,20 @@ local function notifyPlayerRestRegenChanged()
   end
 end
 
-function Comm.SetPlayerRestRegen(enabled)
+function Comm.SetPlayerRestRegen(enabled, autoSitEnabled)
   local state = ensureBridgeState()
   local regen = state.playerRestRegen
   regen.sequence = (tonumber(regen.sequence) or 0) + 1
   local token = tostring(math.floor(safeNow() * 1000)) .. "-rest-" .. tostring(regen.sequence)
   local value = enabled and "ON" or "OFF"
+  if autoSitEnabled == nil and MultiBot.GetPlayerRestRegenAutoSitEnabled then
+    autoSitEnabled = MultiBot.GetPlayerRestRegenAutoSitEnabled()
+  end
+  local autoSitValue = autoSitEnabled and "AUTOSIT_ON" or "AUTOSIT_OFF"
 
   regen.pending = token
   regen.error = nil
-  if not Comm.Send("RUN", "PLAYER_REST_REGEN~" .. token .. "~" .. value) then
+  if not Comm.Send("RUN", "PLAYER_REST_REGEN~" .. token .. "~" .. value .. "~" .. autoSitValue) then
     regen.pending = nil
     regen.error = "BRIDGE_UNAVAILABLE"
     notifyPlayerRestRegenChanged()
@@ -2452,7 +2457,7 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
             Comm.RequestMaintenancePolicy()
           end
           if Comm.SetPlayerRestRegen and MultiBot.GetPlayerRestRegenEnabled then
-            Comm.SetPlayerRestRegen(MultiBot.GetPlayerRestRegenEnabled())
+            Comm.SetPlayerRestRegen(MultiBot.GetPlayerRestRegenEnabled(), MultiBot.GetPlayerRestRegenAutoSitEnabled and MultiBot.GetPlayerRestRegenAutoSitEnabled())
           end
         end
       end)
@@ -2498,7 +2503,8 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
 
   if opcode == "PLAYER_REST_REGEN_ACK" then
     state.connected = true
-    local token, value = splitOnce(payload, "~")
+    local token, values = splitOnce(payload, "~")
+    local value, autoSitValue = splitOnce(values, "~")
     local regen = state.playerRestRegen
     if trim(token) ~= regen.pending then
       return true
@@ -2506,6 +2512,7 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
     regen.pending = nil
     regen.available = true
     regen.active = string.upper(trim(value)) == "ON"
+    regen.autoSitActive = string.upper(trim(autoSitValue)) == "AUTOSIT_ON"
     regen.error = nil
     notifyPlayerRestRegenChanged()
     return true

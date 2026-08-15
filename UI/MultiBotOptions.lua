@@ -1025,6 +1025,15 @@ function MultiBot.BuildOptionsPanel()
       enabled:SetFullWidth(true)
       scroll:AddChild(enabled)
 
+      local autoSit = AceGUI:Create("CheckBox")
+      autoSit:SetLabel(optLF("options.player_rest_regen.auto_sit", "Automatically sit after 5 seconds while low on mana"))
+      if autoSit.SetDescription then
+        autoSit:SetDescription(optLF("options.player_rest_regen.auto_sit_desc", "Only acts below 65% mana while safely stationary and out of combat. Saved per character."))
+      end
+      autoSit:SetValue(MultiBot.GetPlayerRestRegenAutoSitEnabled and MultiBot.GetPlayerRestRegenAutoSitEnabled() or false)
+      autoSit:SetFullWidth(true)
+      scroll:AddChild(autoSit)
+
       local status = AceGUI:Create("Label")
       status:SetFullWidth(true)
       scroll:AddChild(status)
@@ -1033,6 +1042,7 @@ function MultiBot.BuildOptionsPanel()
         regen = regen or (MultiBot.bridge and MultiBot.bridge.playerRestRegen) or {}
         local connected = MultiBot.bridge and MultiBot.bridge.connected
         enabled:SetDisabled(regen.available == false)
+        autoSit:SetDisabled(regen.available == false or not enabled:GetValue())
 
         if regen.pending then
           status:SetText(optLF("options.player_rest_regen.updating", "Waiting for server acknowledgement..."))
@@ -1053,7 +1063,19 @@ function MultiBot.BuildOptionsPanel()
           MultiBot.SetPlayerRestRegenEnabled(desired)
         end
         if MultiBot.bridge and MultiBot.bridge.connected and MultiBot.Comm and MultiBot.Comm.SetPlayerRestRegen then
-          MultiBot.Comm.SetPlayerRestRegen(desired)
+          MultiBot.Comm.SetPlayerRestRegen(desired, MultiBot.GetPlayerRestRegenAutoSitEnabled and MultiBot.GetPlayerRestRegenAutoSitEnabled())
+        else
+          refreshControls()
+        end
+      end)
+
+      autoSit:SetCallback("OnValueChanged", function(_, _, value)
+        local desired = value and true or false
+        if MultiBot.SetPlayerRestRegenAutoSitEnabled then
+          MultiBot.SetPlayerRestRegenAutoSitEnabled(desired)
+        end
+        if MultiBot.bridge and MultiBot.bridge.connected and MultiBot.Comm and MultiBot.Comm.SetPlayerRestRegen then
+          MultiBot.Comm.SetPlayerRestRegen(MultiBot.GetPlayerRestRegenEnabled and MultiBot.GetPlayerRestRegenEnabled(), desired)
         else
           refreshControls()
         end
