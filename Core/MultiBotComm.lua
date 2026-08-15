@@ -165,6 +165,13 @@ local function ensureBridgeState()
     sequence = 0,
     error = nil,
   }
+  state.playerRestRegen = state.playerRestRegen or {
+    available = nil,
+    active = false,
+    pending = nil,
+    sequence = 0,
+    error = nil,
+  }
   return state
 end
 
@@ -241,6 +248,40 @@ function Comm.SendPing()
   state.lastPingToken = token
   state.lastPingAt = safeNow()
   return Comm.Send("PING", token)
+end
+
+local function notifyPlayerRestRegenChanged()
+  if MultiBot and type(MultiBot.OnPlayerRestRegenChanged) == "function" then
+    MultiBot.OnPlayerRestRegenChanged(ensureBridgeState().playerRestRegen)
+  end
+end
+
+function Comm.SetPlayerRestRegen(enabled)
+  local state = ensureBridgeState()
+  local regen = state.playerRestRegen
+  regen.sequence = (tonumber(regen.sequence) or 0) + 1
+  local token = tostring(math.floor(safeNow() * 1000)) .. "-rest-" .. tostring(regen.sequence)
+  local value = enabled and "ON" or "OFF"
+
+  regen.pending = token
+  regen.error = nil
+  if not Comm.Send("RUN", "PLAYER_REST_REGEN~" .. token .. "~" .. value) then
+    regen.pending = nil
+    regen.error = "BRIDGE_UNAVAILABLE"
+    notifyPlayerRestRegenChanged()
+    return false
+  end
+
+  notifyPlayerRestRegenChanged()
+  safeDelay(3.0, function()
+    local current = ensureBridgeState().playerRestRegen
+    if current.pending == token then
+      current.pending = nil
+      current.error = "UPDATE_TIMEOUT"
+      notifyPlayerRestRegenChanged()
+    end
+  end)
+  return true
 end
 
 local function notifyMaintenancePolicyChanged()
@@ -2410,6 +2451,9 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
           if Comm.RequestMaintenancePolicy then
             Comm.RequestMaintenancePolicy()
           end
+          if Comm.SetPlayerRestRegen and MultiBot.GetPlayerRestRegenEnabled then
+            Comm.SetPlayerRestRegen(MultiBot.GetPlayerRestRegenEnabled())
+          end
         end
       end)
     else
@@ -2436,6 +2480,50 @@ function Comm.HandleAddonMessage(prefix, message, distribution, sender)
     if MultiBot.TeleportAccess and MultiBot.SetGM then
       MultiBot.SetGM(true)
     end
+    return true
+  end
+
+  if opcode == "PLAYER_REST_REGEN_ACCESS" then
+    state.connected = true
+    local regen = state.playerRestRegen
+    regen.available = trim(payload) == "1"
+    if not regen.available then
+      regen.error = "UNAUTHORIZED"
+    elseif regen.error == "UNAUTHORIZED" then
+      regen.error = nil
+    end
+    notifyPlayerRestRegenChanged()
+    return true
+  end
+
+  if opcode == "PLAYER_REST_REGEN_ACK" then
+    state.connected = true
+    local token, value = splitOnce(payload, "~")
+    local regen = state.playerRestRegen
+    if trim(token) ~= regen.pending then
+      return true
+    end
+    regen.pending = nil
+    regen.available = true
+    regen.active = string.upper(trim(value)) == "ON"
+    regen.error = nil
+    notifyPlayerRestRegenChanged()
+    return true
+  end
+
+  if opcode == "PLAYER_REST_REGEN_ERROR" then
+    state.connected = true
+    local token, reason = splitOnce(payload, "~")
+    local regen = state.playerRestRegen
+    if trim(token) ~= regen.pending then
+      return true
+    end
+    regen.pending = nil
+    regen.error = trim(reason) ~= "" and trim(reason) or "UPDATE_FAILED"
+    if regen.error == "UNAUTHORIZED" then
+      regen.available = false
+    end
+    notifyPlayerRestRegenChanged()
     return true
   end
 

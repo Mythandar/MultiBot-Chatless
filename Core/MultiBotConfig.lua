@@ -32,6 +32,9 @@ local UI_DEFAULTS = {
   inventory = {
     maxSellQuality = 3,
   },
+  player = {
+    restRegenEnabled = false,
+  },
 }
 
 local DB_DEFAULTS = {
@@ -52,6 +55,9 @@ local DB_DEFAULTS = {
       },
       inventory = {
         maxSellQuality = UI_DEFAULTS.inventory.maxSellQuality,
+      },
+      player = {
+        restRegenEnabled = UI_DEFAULTS.player.restRegenEnabled,
       },
     },
   },
@@ -93,8 +99,12 @@ local function migrateLegacyConfigIntoProfile(profile)
   local ui = ensureTableField(profile, "ui")
   local mainBar = ensureTableField(ui, "mainBar")
   local inventory = ensureTableField(ui, "inventory")
+  local player = ensureTableField(ui, "player")
   if type(inventory.maxSellQuality) ~= "number" or inventory.maxSellQuality < 0 or inventory.maxSellQuality > 5 then
     inventory.maxSellQuality = UI_DEFAULTS.inventory.maxSellQuality
+  end
+  if type(player.restRegenEnabled) ~= "boolean" then
+    player.restRegenEnabled = UI_DEFAULTS.player.restRegenEnabled
   end
   if MultiBot.Store and MultiBot.Store.NormalizeMainBarSettings then
     MultiBot.Store.NormalizeMainBarSettings(mainBar, UI_DEFAULTS.mainBar)
@@ -175,6 +185,11 @@ function MultiBot.Config_Ensure()
   end
 
   local mainBar = MultiBot.Store and MultiBot.Store.EnsureMainBarStore and MultiBot.Store.EnsureMainBarStore()
+  local ui = ensureTableField(config, "ui")
+  local player = ensureTableField(ui, "player")
+  if type(player.restRegenEnabled) ~= "boolean" then
+    player.restRegenEnabled = UI_DEFAULTS.player.restRegenEnabled
+  end
   if mainBar and MultiBot.Store.NormalizeMainBarSettings then
     MultiBot.Store.NormalizeMainBarSettings(mainBar, UI_DEFAULTS.mainBar)
     return
@@ -411,4 +426,21 @@ function MultiBot.SetMaxSellQuality(value)
   local inventory = ensureTableField(ui, "inventory")
   inventory.maxSellQuality = value
   return value
+end
+
+function MultiBot.GetPlayerRestRegenEnabled()
+  local config = getConfigStore(false)
+  local value = config and config.ui and config.ui.player and config.ui.player.restRegenEnabled
+  if type(value) == "boolean" then
+    return value
+  end
+  return UI_DEFAULTS.player.restRegenEnabled
+end
+
+function MultiBot.SetPlayerRestRegenEnabled(value)
+  local config = getConfigStore(true)
+  local ui = ensureTableField(config, "ui")
+  local player = ensureTableField(ui, "player")
+  player.restRegenEnabled = value and true or false
+  return player.restRegenEnabled
 end
