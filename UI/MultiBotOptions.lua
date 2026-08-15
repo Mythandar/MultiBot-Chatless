@@ -1003,6 +1003,88 @@ function MultiBot.BuildOptionsPanel()
       end
     end
 
+    local function buildPlayerTab(tabGroup)
+      local scroll = addTabScroll(tabGroup)
+
+      local title = AceGUI:Create("Heading")
+      title:SetText(optLF("options.player_rest_regen.title", "Player rest regeneration"))
+      title:SetFullWidth(true)
+      scroll:AddChild(title)
+
+      local description = AceGUI:Create("Label")
+      description:SetText(optLF("options.player_rest_regen.description", "While enabled, sitting still below 65% mana restores 5% of maximum mana per second. It never restores health and stops when you move or enter combat."))
+      description:SetFullWidth(true)
+      scroll:AddChild(description)
+
+      local enabled = AceGUI:Create("CheckBox")
+      enabled:SetLabel(optLF("options.player_rest_regen.enable", "Automatic free mana regeneration while resting"))
+      if enabled.SetDescription then
+        enabled:SetDescription(optLF("options.player_rest_regen.enable_desc", "Saved per character. Requires the MultiBot bridge and GM aura permission."))
+      end
+      enabled:SetValue(MultiBot.GetPlayerRestRegenEnabled and MultiBot.GetPlayerRestRegenEnabled() or false)
+      enabled:SetFullWidth(true)
+      scroll:AddChild(enabled)
+
+      local autoSit = AceGUI:Create("CheckBox")
+      autoSit:SetLabel(optLF("options.player_rest_regen.auto_sit", "Automatically sit after 5 seconds while low on mana"))
+      if autoSit.SetDescription then
+        autoSit:SetDescription(optLF("options.player_rest_regen.auto_sit_desc", "Only acts below 65% mana while safely stationary and out of combat. Saved per character."))
+      end
+      autoSit:SetValue(MultiBot.GetPlayerRestRegenAutoSitEnabled and MultiBot.GetPlayerRestRegenAutoSitEnabled() or false)
+      autoSit:SetFullWidth(true)
+      scroll:AddChild(autoSit)
+
+      local status = AceGUI:Create("Label")
+      status:SetFullWidth(true)
+      scroll:AddChild(status)
+
+      local function refreshControls(regen)
+        regen = regen or (MultiBot.bridge and MultiBot.bridge.playerRestRegen) or {}
+        local connected = MultiBot.bridge and MultiBot.bridge.connected
+        enabled:SetDisabled(regen.available == false)
+        autoSit:SetDisabled(regen.available == false or not enabled:GetValue())
+
+        if regen.pending then
+          status:SetText(optLF("options.player_rest_regen.updating", "Waiting for server acknowledgement..."))
+        elseif regen.error then
+          status:SetText(string.format("|cffff5555%s: %s|r", optLF("options.player_rest_regen.error", "Server error"), optLF("options.player_rest_regen.error." .. tostring(regen.error), tostring(regen.error))))
+        elseif not connected then
+          status:SetText(optLF("options.player_rest_regen.saved_offline", "Preference saved. It will be sent when the bridge connects."))
+        elseif regen.active then
+          status:SetText(optLF("options.player_rest_regen.active", "Enabled on the server for this character."))
+        else
+          status:SetText(optLF("options.player_rest_regen.inactive", "Disabled on the server for this character."))
+        end
+      end
+
+      enabled:SetCallback("OnValueChanged", function(_, _, value)
+        local desired = value and true or false
+        if MultiBot.SetPlayerRestRegenEnabled then
+          MultiBot.SetPlayerRestRegenEnabled(desired)
+        end
+        if MultiBot.bridge and MultiBot.bridge.connected and MultiBot.Comm and MultiBot.Comm.SetPlayerRestRegen then
+          MultiBot.Comm.SetPlayerRestRegen(desired, MultiBot.GetPlayerRestRegenAutoSitEnabled and MultiBot.GetPlayerRestRegenAutoSitEnabled())
+        else
+          refreshControls()
+        end
+      end)
+
+      autoSit:SetCallback("OnValueChanged", function(_, _, value)
+        local desired = value and true or false
+        if MultiBot.SetPlayerRestRegenAutoSitEnabled then
+          MultiBot.SetPlayerRestRegenAutoSitEnabled(desired)
+        end
+        if MultiBot.bridge and MultiBot.bridge.connected and MultiBot.Comm and MultiBot.Comm.SetPlayerRestRegen then
+          MultiBot.Comm.SetPlayerRestRegen(MultiBot.GetPlayerRestRegenEnabled and MultiBot.GetPlayerRestRegenEnabled(), desired)
+        else
+          refreshControls()
+        end
+      end)
+
+      MultiBot.OnPlayerRestRegenChanged = refreshControls
+      refreshControls()
+    end
+
     local function buildInventoryTab(tabGroup)
       local scroll = addTabScroll(tabGroup)
       local title = AceGUI:Create("Heading")
@@ -1140,11 +1222,13 @@ function MultiBot.BuildOptionsPanel()
       { text = optL("options.tabs.layout"), value = "layout" },
       { text = optL("options.tabs.strata"), value = "strata" },
       { text = optLF("options.tabs.maintenance", "Maintenance"), value = "maintenance" },
+      { text = optLF("options.tabs.player", "Player"), value = "player" },
       { text = optLF("options.tabs.inventory", "Inventory"), value = "inventory" },
       { text = optL("options.tabs.intervals"), value = "intervals" },
     })
     tabGroup:SetCallback("OnGroupSelected", function(widget, _, group)
       MultiBot.OnMaintenancePolicyChanged = nil
+      MultiBot.OnPlayerRestRegenChanged = nil
       widget:ReleaseChildren()
       if group == "minimap" then
         buildMinimapTab(widget)
@@ -1156,6 +1240,8 @@ function MultiBot.BuildOptionsPanel()
         buildIntervalsTab(widget)
       elseif group == "maintenance" then
         buildMaintenanceTab(widget)
+      elseif group == "player" then
+        buildPlayerTab(widget)
       elseif group == "inventory" then
         buildInventoryTab(widget)
       end
