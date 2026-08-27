@@ -6,13 +6,36 @@ local MODE_BUTTON_ICON = "Interface\\AddOns\\MultiBot\\Icons\\mode_passive.blp"
 local MODE_FRAME_X = -172
 local MODE_FRAME_Y = 34
 
-local function bindModeToggleAction(modeButton, enableCommand, disableCommand)
-    modeButton.setEnable().doLeft = function(button)
-        if MultiBot.OnOffSwitch(button) then
-            MultiBot.ActionToGroup(enableCommand)
-        else
-            MultiBot.ActionToGroup(disableCommand)
+local function runModeCommands(commands)
+    if type(commands) == "string" then
+        return MultiBot.ActionToGroup(commands)
+    end
+
+    for _, command in ipairs(commands) do
+        if not MultiBot.ActionToGroup(command) then
+            return false
         end
+    end
+
+    return true
+end
+
+local function bindModeToggleAction(modeButton, enableCommands, disableCommands)
+    modeButton.setDisable().doLeft = function(button)
+        if button.state then
+            if runModeCommands(disableCommands) then
+                button.setDisable()
+            end
+        elseif runModeCommands(enableCommands) then
+            button.setEnable()
+        end
+    end
+end
+
+local function selectMode(button, enableCommands, disableCommands)
+    local modeRoot = button.parent.parent
+    if MultiBot.Select(modeRoot, MODE_FRAME_NAME, button.texture) then
+        bindModeToggleAction(modeRoot.buttons[MODE_BUTTON_NAME], enableCommands, disableCommands)
     end
 end
 
@@ -35,21 +58,26 @@ local function createModeUI(tLeft)
     modeFrame:Hide()
 
     modeFrame.addButton("Passive", 0, 0, MODE_BUTTON_ICON, MultiBot.L("tips.mode.passive")).doLeft = function(button)
-        if MultiBot.SelectToGroup(button.parent.parent, MODE_FRAME_NAME, button.texture, "co +passive,?") then
-            bindModeToggleAction(button.parent.parent.buttons[MODE_BUTTON_NAME], "co +passive,?", "co -passive,?")
-        end
+        selectMode(button, "co +passive,?", "co -passive,?")
     end
 
     modeFrame.addButton("Grind", 0, 30, "Interface\\AddOns\\MultiBot\\Icons\\mode_grind.blp", MultiBot.L("tips.mode.grind")).doLeft = function(button)
-        if MultiBot.SelectToGroup(button.parent.parent, MODE_FRAME_NAME, button.texture, "grind") then
-            bindModeToggleAction(button.parent.parent.buttons[MODE_BUTTON_NAME], "grind", "follow")
-        end
+        selectMode(button, "grind", "follow")
     end
 
-    modeFrame.addButton("Flee", 0, 60, "Interface\\AddOns\\MultiBot\\Icons\\flee.blp", MultiBot.L("tips.flee.flee")).doLeft = function(button)
-        if MultiBot.SelectToGroup(button.parent.parent, MODE_FRAME_NAME, button.texture, "flee") then
-            bindModeToggleAction(button.parent.parent.buttons[MODE_BUTTON_NAME], "flee", "follow")
-        end
+    modeFrame.addButton("Flee", 0, 60, "Interface\\AddOns\\MultiBot\\Icons\\flee.blp", MultiBot.L("tips.mode.flee")).doLeft = function(button)
+        selectMode(button, "flee", "follow")
+    end
+
+    modeFrame.addButton("Guard", 0, 90, "Interface\\AddOns\\MultiBot\\Icons\\formation_shield.blp", MultiBot.L("tips.mode.guard")).doLeft = function(button)
+        selectMode(button, {
+            "position guard set",
+            "nc -follow,-stay,-passive,-grind,+guard,?",
+            "co -stay,-guard,-passive,-grind,?",
+        }, {
+            "nc -guard,?",
+            "follow",
+        })
     end
 end
 

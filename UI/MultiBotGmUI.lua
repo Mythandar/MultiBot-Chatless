@@ -76,6 +76,8 @@ local MEMORY_GEMS = {
     { label = "Blue", x = 60, icon = "inv_jewelcrafting_gem_17" },
 }
 
+local EVACUATION_RADII = { 100, 250, 500, 1000 }
+
 local function ensureDeleteSavedVariablesDialog()
     StaticPopupDialogs["MULTIBOT_DELETE_SV"] = {
         text = MultiBot.L("tips.game.delsvwarning"),
@@ -215,7 +217,37 @@ function MultiBot.BuildGmUI(tMultiBar)
         mastersFrame.addButton(definition.label, 0, definition.y, definition.icon, MultiBot.L(definition.tip)).doLeft = definition.click
     end
 
-    mastersFrame.addButton("DelSV", 0, 238, "ability_golemstormbolt", MultiBot.L("tips.game.delsv"), "ActionButtonTemplate")
+    local evacuationButton = mastersFrame.addButton(
+        "Evacuate",
+        0,
+        238,
+        "spell_nature_earthquake",
+        MultiBot.L("tips.game.evacuate")
+    )
+    local evacuationFrame = mastersFrame.addFrame("Evacuate", 30, 240)
+    evacuationFrame:Hide()
+
+    evacuationButton.doLeft = function()
+        MultiBot.ShowHideSwitch(evacuationFrame)
+    end
+
+    for index, radius in ipairs(EVACUATION_RADII) do
+        local selectedRadius = radius
+        local radiusButton = evacuationFrame.addButton(
+            "Evacuate" .. selectedRadius,
+            (index - 1) * 30,
+            0,
+            "spell_nature_earthquake",
+            string.format(MultiBot.L("tips.game.evacuate.radius"), selectedRadius, selectedRadius)
+        )
+        radiusButton:setAmount(selectedRadius == 1000 and "1k" or selectedRadius)
+        radiusButton.doLeft = function()
+            SendChatMessage(".playerbots rndbot evacuate " .. selectedRadius, "SAY")
+            evacuationFrame:Hide()
+        end
+    end
+
+    mastersFrame.addButton("DelSV", 0, 272, "ability_golemstormbolt", MultiBot.L("tips.game.delsv"), "ActionButtonTemplate")
         .doLeft = function()
             MultiBot.ShowDeleteSVPrompt()
         end
@@ -232,6 +264,8 @@ function MultiBot.BuildGmUI(tMultiBar)
         mainButton = mainButton,
         mastersFrame = mastersFrame,
         portalFrame = portalFrame,
+        evacuationFrame = evacuationFrame,
+        evacuationButton = evacuationButton,
         necroButton = necroButton,
     }
 end
